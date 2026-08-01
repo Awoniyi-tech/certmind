@@ -1,0 +1,40 @@
+# ── Python / Backend ──
+backend/venv/
+backend/.venv/
+backend/__pycache__/
+backend/**/__pycache__/
+backend/*.pyc
+backend/data/
+backend/.env
+backend/*.egg-info/
+backend/dist/
+backend/build/
+
+# ── Node / Frontend ──
+frontend/node_modules/
+frontend/dist/
+frontend/.env
+frontend/.env.local
+
+# ── OS / IDE ──
+.DS_Store
+Thumbs.db
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# ── Temp debug scripts ──
+tmp_*.py
+backend/tmp_*.py
+backend/diag*.py
+backend/check_db.py
+backend/routers/Unit5ASS.py
+migrate_users.py
+
+# ── Gemini agent files ──
+.agents/
+.gemini/
+
+# ── Pictures folder (local screenshots) ──
+Pictures/
