@@ -141,6 +141,32 @@ async def init_db():
                 FOREIGN KEY (user_id) REFERENCES users(id)
             );
 
+            CREATE TABLE IF NOT EXISTS experiments (
+                id          TEXT PRIMARY KEY,
+                user_id     TEXT NOT NULL,
+                name        TEXT NOT NULL,
+                definition  TEXT NOT NULL,
+                results     TEXT NOT NULL,
+                winner      TEXT,
+                created_at  TEXT DEFAULT (datetime('now')),
+                FOREIGN KEY (user_id) REFERENCES users(id)
+            );
+
+            CREATE TABLE IF NOT EXISTS llm_runs (
+                id                  TEXT PRIMARY KEY,
+                user_id             TEXT NOT NULL,
+                model               TEXT NOT NULL,
+                prompt_hash         TEXT NOT NULL,
+                status              TEXT NOT NULL,
+                latency_ms          REAL,
+                input_tokens        INTEGER DEFAULT 0,
+                output_tokens       INTEGER DEFAULT 0,
+                estimated_cost_usd  REAL DEFAULT 0,
+                error               TEXT,
+                created_at          TEXT DEFAULT (datetime('now')),
+                FOREIGN KEY (user_id) REFERENCES users(id)
+            );
+
             CREATE INDEX IF NOT EXISTS idx_questions_cert
                 ON questions(cert_id);
             CREATE INDEX IF NOT EXISTS idx_questions_bank
@@ -191,6 +217,8 @@ async def init_db():
             "CREATE INDEX IF NOT EXISTS idx_questions_fingerprint ON questions(fingerprint)",
             "CREATE INDEX IF NOT EXISTS idx_knowledge_sources_user ON knowledge_sources(user_id)",
             "CREATE INDEX IF NOT EXISTS idx_evaluations_user ON evaluations(user_id)",
+            "CREATE INDEX IF NOT EXISTS idx_experiments_user ON experiments(user_id)",
+            "CREATE INDEX IF NOT EXISTS idx_llm_runs_user ON llm_runs(user_id)",
             "CREATE INDEX IF NOT EXISTS idx_streaks_user ON study_streaks(user_id)",
         ]
         for stmt in index_migrations:
