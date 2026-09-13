@@ -1,15 +1,51 @@
+import asyncio
 import json
 import os
 import uuid
+from pathlib import Path
 from typing import Optional
 
-from fastapi import APIRouter, Depends, HTTPException, Query
+from fastapi import APIRouter, Depends, HTTPException, Query, UploadFile, File, Form
 from pydantic import BaseModel
 
 from database.db import get_db
 from routers.auth import get_current_user
 
 router = APIRouter()
+
+
+@router.post("/knowledge/upload")
+async def upload_personal_knowledge(
+    file: UploadFile = File(...),
+    cert_id: Optional[str] = Form(None),
+    user=Depends(get_current_user),
+    db=Depends(get_db),
+):
+    filename = (file.filename or "").strip()
+    if Path(filename).suffix.lower() not in {".md", ".markdown", ".mdown"}:
+        raise HTTPException(400, "Only Markdown files are accepted.")
+    content = await file.read()
+    if len(content) > 5 * 1024 * 1024:
+        raise HTTPException(413, "Markdown file too large. Maximum size is 5MB.")
+    try:
+        text_content = content.decode("utf-8")
+    except UnicodeDecodeError:
+        raise HTTPException(400, "Markdown file must be UTF-8 encoded.")
+    from services.personal_knowledge_service import content_hash, index_markdown
+    source_id = str(uuid.uuid4())
+    await db.execute(
+        "INSERT INTO knowledge_sources (id, user_id, name, filename, cert_id, content_hash, status) VALUES (?,?,?,?,?,?,?)",
+        (source_id, user["id"], filename, filename, cert_id, content_hash(content), "processing"),
+    )
+    await db.commit()
+    asyncio.create_task(index_markdown(source_id, user["id"], filename, text_content, cert_id))
+    return {"source_id": source_id, "filename": filename, "status": "processing"}
+
+
+@router.get("/knowledge/sources")
+async def list_personal_knowledge(user=Depends(get_current_user), db=Depends(get_db)):
+    async with db.execute("SELECT id, name, filename, cert_id, chunk_count, status, error, created_at FROM knowledge_sources WHERE user_id = ? ORDER BY created_at DESC", (user["id"],)) as cur:
+        return [dict(row) for row in await cur.fetchall()]
 
 
 class ExplainBody(BaseModel):
@@ -348,3 +384,4 @@ async def _set_cache(db, cache_type: str, identifier: str, content: dict, ttl_da
         await db.commit()
     except Exception:
         pass
+
