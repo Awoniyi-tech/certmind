@@ -42,7 +42,7 @@ async def start_exam(body: StartExamBody, user=Depends(get_current_user), db=Dep
     if body.session_type not in {"exam", "practice", "review"}:
         raise HTTPException(422, "Invalid session type.")
     params     = [body.cert_id]
-    where_clauses = ["q.cert_id = ?"]
+    where_clauses = ["q.cert_id = ?", "COALESCE(q.needs_review, 0) = 0"]
 
     if body.bank_id:
         async with db.execute(
