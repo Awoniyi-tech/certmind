@@ -112,6 +112,11 @@ class RunPromptBody(BaseModel):
     model: str = "gemini-2.5-flash"
 
 
+class CompareModelsBody(BaseModel):
+    prompt: str
+    models: list[str] = ["gemini-2.5-flash"]
+
+
 @router.post("/run-prompt")
 async def run_prompt(body: RunPromptBody, user=Depends(get_current_user)):
     if len(body.prompt.strip()) < 1:
@@ -125,6 +130,24 @@ async def run_prompt(body: RunPromptBody, user=Depends(get_current_user)):
         raise HTTPException(503, str(exc))
     except Exception:
         raise HTTPException(502, "The model provider could not complete the request.")
+
+
+@router.post("/compare-models")
+async def compare_models(body: CompareModelsBody, user=Depends(get_current_user)):
+    if not body.prompt.strip():
+        raise HTTPException(422, "Prompt cannot be empty.")
+    if not body.models or len(body.models) > 5:
+        raise HTTPException(422, "Choose between 1 and 5 models.")
+    from services.model_runner import run_gemini
+    results = []
+    for model in body.models:
+        try:
+            results.append({"model": model, "status": "completed", **(await run_gemini(body.prompt, model))})
+        except RuntimeError as exc:
+            results.append({"model": model, "status": "unavailable", "error": str(exc)})
+        except Exception:
+            results.append({"model": model, "status": "failed", "error": "Provider request failed."})
+    return {"prompt": body.prompt, "results": results}
 
 
 @router.post("/experiment")
