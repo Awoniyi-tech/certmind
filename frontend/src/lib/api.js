@@ -69,6 +69,13 @@ export const ragAPI = {
   learn: (body) => api.post('/rag/learn', body).then(r => r.data),
   generate: (body) => api.post('/rag/generate', body).then(r => r.data),
   tutor: (body) => api.post('/rag/tutor', body).then(r => r.data),
+  uploadKnowledge: (file, certId) => {
+    const form = new FormData()
+    form.append('file', file)
+    if (certId) form.append('cert_id', certId)
+    return api.post('/rag/knowledge/upload', form, { headers: { 'Content-Type': 'multipart/form-data' } }).then(r => r.data)
+  },
+  knowledgeSources: () => api.get('/rag/knowledge/sources').then(r => r.data),
 }
 
 export const dumpsAPI = {
@@ -88,3 +95,4 @@ export const dumpsAPI = {
 }
 
 export default api
+
