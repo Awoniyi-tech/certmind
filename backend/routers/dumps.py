@@ -22,7 +22,8 @@ async def upload_dump(
     user=Depends(get_current_user),
     db=Depends(get_db),
 ):
-    if not file.filename.endswith(".pdf"):
+    filename = (file.filename or "").strip()
+    if not filename.lower().endswith(".pdf"):
         raise HTTPException(400, "Only PDF files accepted.")
 
     UPLOAD_DIR.mkdir(parents=True, exist_ok=True)
@@ -38,14 +39,14 @@ async def upload_dump(
     await db.execute(
         """INSERT INTO question_banks (id, cert_id, user_id, source_type, source_name)
            VALUES (?,?,?,?,?)""",
-        (bank_id, cert_id, user["id"], "dump", file.filename),
+        (bank_id, cert_id, user["id"], "dump", filename),
     )
     await db.commit()
 
     return {
         "bank_id":   bank_id,
         "cert_id":   cert_id,
-        "filename":  file.filename,
+        "filename":  filename,
         "status":    "uploaded",
         "message":   "PDF uploaded. Call /api/dumps/{bank_id}/process to extract questions.",
     }
@@ -82,16 +83,17 @@ async def process_dump(bank_id: str, user=Depends(get_current_user), db=Depends(
     for q in questions:
         await db.execute(
             """INSERT OR IGNORE INTO questions
-               (id, bank_id, cert_id, type, topic, question, options, answer_key, difficulty)
-               VALUES (?,?,?,?,?,?,?,?,?)""",
+               (id, bank_id, cert_id, type, topic, question, options, answer_key, difficulty, needs_review)
+               VALUES (?,?,?,?,?,?,?,?,?,?)""",
             (
                 q["id"], bank_id, bank["cert_id"],
                 q["type"], q.get("topic"),
                 q["question"],
                 json.dumps(q["options"]),
-                json.dumps(q["answer_key"]) if isinstance(q["answer_key"], list)
-                else q["answer_key"],
+                json.dumps(q["answer_key"]) if isinstance(q.get("answer_key"), list)
+                else q.get("answer_key") or "",
                 q.get("difficulty", "medium"),
+                1 if q.get("needs_review") else 0,
             ),
         )
 
@@ -241,3 +243,4 @@ async def delete_bank(bank_id: str, user=Depends(get_current_user), db=Depends(g
     if pdf_path.exists():
         pdf_path.unlink()
     return {"deleted": True}
+
