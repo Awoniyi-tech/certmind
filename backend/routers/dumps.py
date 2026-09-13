@@ -68,6 +68,7 @@ async def process_dump(bank_id: str, user=Depends(get_current_user), db=Depends(
 
     try:
         from services.dump_service import extract_questions_from_pdf
+        from services.question_validation import deduplicate_questions
         questions = await extract_questions_from_pdf(
             pdf_path=pdf_path,
             cert_id=bank["cert_id"],
@@ -78,6 +79,10 @@ async def process_dump(bank_id: str, user=Depends(get_current_user), db=Depends(
 
     if not questions:
         raise HTTPException(422, "No questions could be extracted from this PDF.")
+
+    questions, rejected_count = deduplicate_questions(questions)
+    if not questions:
+        raise HTTPException(422, "No valid, unique questions could be extracted from this PDF.")
 
     # Save questions to DB first
     for q in questions:
@@ -93,6 +98,8 @@ async def process_dump(bank_id: str, user=Depends(get_current_user), db=Depends(
                 json.dumps(q["answer_key"]) if isinstance(q.get("answer_key"), list)
                 else q.get("answer_key") or "",
                 q.get("difficulty", "medium"),
+                1 if q.get("needs_review") else 0,
+                q.get("fingerprint"),
                 1 if q.get("needs_review") else 0,
             ),
         )
@@ -115,6 +122,7 @@ async def process_dump(bank_id: str, user=Depends(get_current_user), db=Depends(
     return {
         "bank_id":         bank_id,
         "questions_added": len(questions),
+        "questions_rejected": rejected_count,
         "status":          "processed",
         "explanation_status": "generating",
     }
