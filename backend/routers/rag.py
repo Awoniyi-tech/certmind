@@ -1,4 +1,5 @@
 import asyncio
+import hashlib
 import json
 import os
 import uuid
@@ -12,6 +13,22 @@ from database.db import get_db
 from routers.auth import get_current_user
 
 router = APIRouter()
+
+
+async def _record_llm_run(db, user_id: str, prompt: str, result: dict):
+    await db.execute(
+        """INSERT INTO llm_runs
+           (id, user_id, model, prompt_hash, status, latency_ms, input_tokens, output_tokens, estimated_cost_usd, error)
+           VALUES (?,?,?,?,?,?,?,?,?,?)""",
+        (
+            str(uuid.uuid4()), user_id,
+            result.get("model", "unknown"),
+            hashlib.sha256(prompt.encode("utf-8")).hexdigest(),
+            result.get("status", "completed"), result.get("latency_ms"),
+            result.get("input_tokens", 0), result.get("output_tokens", 0),
+            result.get("estimated_cost_usd", 0), result.get("error"),
+        ),
+    )
 
 
 @router.post("/knowledge/upload")
@@ -125,7 +142,13 @@ async def run_prompt(body: RunPromptBody, user=Depends(get_current_user)):
         raise HTTPException(413, "Prompt is too large.")
     try:
         from services.model_runner import run_gemini
-        return await run_gemini(body.prompt, body.model)
+        result = await run_gemini(body.prompt, body.model)
+        result["status"] = "completed"
+        from database.db import get_db as _get_db
+        async for db in _get_db():
+            await _record_llm_run(db, user["id"], body.prompt, result)
+            await db.commit()
+        return result
     except RuntimeError as exc:
         raise HTTPException(503, str(exc))
     except Exception:
@@ -139,15 +162,27 @@ async def compare_models(body: CompareModelsBody, user=Depends(get_current_user)
     if not body.models or len(body.models) > 5:
         raise HTTPException(422, "Choose between 1 and 5 models.")
     from services.model_runner import run_gemini
+    from database.db import get_db as _get_db
     results = []
-    for model in body.models:
-        try:
-            results.append({"model": model, "status": "completed", **(await run_gemini(body.prompt, model))})
-        except RuntimeError as exc:
-            results.append({"model": model, "status": "unavailable", "error": str(exc)})
-        except Exception:
-            results.append({"model": model, "status": "failed", "error": "Provider request failed."})
+    async for db in _get_db():
+        for model in body.models:
+            try:
+                result = {"model": model, "status": "completed", **(await run_gemini(body.prompt, model))}
+            except RuntimeError as exc:
+                result = {"model": model, "status": "unavailable", "error": str(exc)}
+            except Exception:
+                result = {"model": model, "status": "failed", "error": "Provider request failed."}
+            await _record_llm_run(db, user["id"], body.prompt, result)
+            results.append(result)
+        await db.commit()
     return {"prompt": body.prompt, "results": results}
+
+
+@router.get("/runs")
+async def list_model_runs(limit: int = 50, user=Depends(get_current_user), db=Depends(get_db)):
+    limit = min(max(limit, 1), 200)
+    async with db.execute("SELECT id, model, prompt_hash, status, latency_ms, input_tokens, output_tokens, estimated_cost_usd, error, created_at FROM llm_runs WHERE user_id = ? ORDER BY created_at DESC LIMIT ?", (user["id"], limit)) as cur:
+        return [dict(row) for row in await cur.fetchall()]
 
 
 @router.post("/experiment")
