@@ -130,6 +130,17 @@ async def init_db():
                 FOREIGN KEY (user_id) REFERENCES users(id)
             );
 
+            CREATE TABLE IF NOT EXISTS evaluations (
+                id          TEXT PRIMARY KEY,
+                user_id     TEXT NOT NULL,
+                name        TEXT NOT NULL,
+                response    TEXT NOT NULL,
+                score       REAL NOT NULL,
+                result      TEXT NOT NULL,
+                created_at  TEXT DEFAULT (datetime('now')),
+                FOREIGN KEY (user_id) REFERENCES users(id)
+            );
+
             CREATE INDEX IF NOT EXISTS idx_questions_cert
                 ON questions(cert_id);
             CREATE INDEX IF NOT EXISTS idx_questions_bank
@@ -179,6 +190,7 @@ async def init_db():
             "CREATE INDEX IF NOT EXISTS idx_banks_user ON question_banks(user_id)",
             "CREATE INDEX IF NOT EXISTS idx_questions_fingerprint ON questions(fingerprint)",
             "CREATE INDEX IF NOT EXISTS idx_knowledge_sources_user ON knowledge_sources(user_id)",
+            "CREATE INDEX IF NOT EXISTS idx_evaluations_user ON evaluations(user_id)",
             "CREATE INDEX IF NOT EXISTS idx_streaks_user ON study_streaks(user_id)",
         ]
         for stmt in index_migrations:
