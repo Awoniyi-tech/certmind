@@ -120,14 +120,21 @@ Student selected: {user_answer}
 Official documentation context:
 {context if context else "Use your expert networking knowledge."}
 
-Write ONE tight, flowing explanation — 3 to 6 sentences total, no headers, no bullet points, no markdown formatting.
-- Base every technical claim strictly on the documentation context above. Do not add extra mechanisms, features, or details that are not supported by it, even if they are generally true in networking — if the context doesn't cover something, leave it out rather than guessing.
-- State the correct technical concept clearly and why {correct_str} is right, grounded in the documentation above.
-- If the student's answer was wrong, explain specifically why their choice fails. If their chosen option (or another distractor) describes a real concept that actually belongs to a different protocol or context, say so explicitly — this kind of cross-topic mix-up is often exactly why the question is tricky.
-- Only mention other wrong options if it genuinely adds value — do not force a breakdown of every single option.
-- Close with one short, memorable takeaway woven naturally into the last sentence, not as a separate labeled section.
+Write a structured explanation following this EXACT format and style:
 
-Sound like a knowledgeable human tutor talking, not a textbook. Be precise and complete, but do not pad it, and never state something as fact unless the documentation above actually supports it."""
+1. Start with the correct answer stated clearly — e.g. "The correct answer is B." or "TRUE." or "FALSE."
+2. Explain WHY the correct answer is right in 1-2 sentences, grounded in the documentation context above. Include specific technical values where relevant (timer values, port numbers, address ranges, default values).
+3. Then go through EVERY option with a verdict, using this format:
+   - For correct options: "A — [brief reason] ✓"
+   - For wrong options: "B — WRONG: [why it's wrong]. [If this concept actually belongs to a different protocol/mechanism/context, say WHERE it belongs]."
+4. End with one short memorable takeaway sentence.
+
+Critical rules:
+- EVERY wrong option must explain WHERE that concept actually belongs if it describes a real thing from a different context. This cross-referencing is the most valuable teaching tool.
+- Use specific technical values (e.g. "default Hello=10s, Dead=40s" or "TCP port 179" or "TTL=1 for EBGP") — do not be vague.
+- Keep the total explanation between 60-120 words. Dense and precise, not paddy.
+- No markdown headers. Plain text only. Use ✓ for correct and WRONG: label for incorrect.
+- Base claims on the documentation context. If context doesn't cover something, use expert knowledge but keep it factual."""
 
         llm   = ChatGoogleGenerativeAI(
             model="gemini-2.5-flash",
@@ -172,7 +179,7 @@ def _explain_generic_sync(
     correct_str = (", ".join(answer_key) if isinstance(answer_key, list)
                    else str(answer_key))
 
-    prompt_text = f"""You are a sharp {_cert_to_name(cert_id)} exam coach explaining one practice question to a student, before they've answered it.
+    prompt_text = f"""You are a sharp {_cert_to_name(cert_id)} exam coach explaining one practice question to a student.
 
 Question: {question}
 Options:
@@ -182,13 +189,21 @@ Correct answer: {correct_str}
 Official documentation context:
 {context if context else "Use your expert networking knowledge."}
 
-Write ONE tight, flowing explanation — 3 to 6 sentences total, no headers, no bullet points, no markdown formatting.
-- Base every technical claim strictly on the documentation context above. Do not add extra mechanisms, features, or details that are not supported by it, even if they are generally true in networking — if the context doesn't cover something, leave it out rather than guessing.
-- State the correct technical concept clearly and why {correct_str} is right, grounded in the documentation above.
-- Briefly note why the other options are wrong, especially if any of them describe a real concept that actually belongs to a different protocol or context — this kind of cross-topic mix-up is often exactly why the question is tricky.
-- Close with one short, memorable takeaway woven naturally into the last sentence, not as a separate labeled section.
+Write a structured explanation following this EXACT format and style:
 
-Sound like a knowledgeable human tutor talking, not a textbook. Be precise and complete, but do not pad it, and never state something as fact unless the documentation above actually supports it."""
+1. Start with the correct answer stated clearly — e.g. "The correct answer is B." or "TRUE." or "FALSE."
+2. Explain WHY the correct answer is right in 1-2 sentences, grounded in the documentation context above. Include specific technical values where relevant (timer values, port numbers, address ranges, default values).
+3. Then go through EVERY option with a verdict, using this format:
+   - For correct options: "A — [brief reason] ✓"
+   - For wrong options: "B — WRONG: [why it's wrong]. [If this concept actually belongs to a different protocol/mechanism/context, say WHERE it belongs]."
+4. End with one short memorable takeaway sentence.
+
+Critical rules:
+- EVERY wrong option must explain WHERE that concept actually belongs if it describes a real thing from a different context. This cross-referencing is the most valuable teaching tool.
+- Use specific technical values (e.g. "default Hello=10s, Dead=40s" or "TCP port 179" or "TTL=1 for EBGP") — do not be vague.
+- Keep the total explanation between 60-120 words. Dense and precise, not paddy.
+- No markdown headers. Plain text only. Use ✓ for correct and WRONG: label for incorrect.
+- Base claims on the documentation context. If context doesn't cover something, use expert knowledge but keep it factual."""
 
     last_error = None
     for attempt in range(1, max_retries + 1):
@@ -260,15 +275,19 @@ def _fallback_explanation_sync(
         correct_str = (", ".join(answer_key) if isinstance(answer_key, list)
                        else str(answer_key))
 
-        prompt_text = f"""You are a networking exam coach. Briefly explain this question.
+        prompt_text = f"""You are a networking exam coach. Explain this question using your expert knowledge.
 
 Question: {question}
 Options:
 {chr(10).join(options)}
 Correct answer: {correct_str}
 
-Write a short explanation (2-4 sentences) of why {correct_str} is correct and the other options are wrong.
-Use your general networking knowledge. Be concise and clear. No headers, no bullet points."""
+Write a structured explanation:
+1. State why {correct_str} is correct in 1-2 sentences with specific technical details (values, ports, defaults).
+2. Go through each wrong option briefly: "[Letter] — WRONG: [why]. [Where this concept actually belongs if applicable]."
+3. One takeaway sentence.
+
+Keep it 60-100 words total. Use ✓ for correct options and WRONG: for incorrect. Plain text, no markdown headers."""
 
         llm = ChatGoogleGenerativeAI(
             model="gemini-2.5-flash",
