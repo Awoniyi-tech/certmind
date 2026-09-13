@@ -83,6 +83,35 @@ class TutorBody(BaseModel):
     history:  list[dict] = []
 
 
+class EvaluateBody(BaseModel):
+    name: str = "Untitled evaluation"
+    response: str
+    expected: Optional[str] = None
+    required_phrases: list[str] = []
+    forbidden_phrases: list[str] = []
+    max_length: Optional[int] = None
+    require_json: bool = False
+
+
+@router.post("/evaluate")
+async def evaluate_response(body: EvaluateBody, user=Depends(get_current_user), db=Depends(get_db)):
+    from services.evaluation_service import evaluate_response as run_evaluation
+    result = run_evaluation(
+        response=body.response,
+        expected=body.expected,
+        required_phrases=body.required_phrases,
+        forbidden_phrases=body.forbidden_phrases,
+        max_length=body.max_length,
+        require_json=body.require_json,
+    )
+    await db.execute(
+        "INSERT INTO evaluations (id, user_id, name, response, score, result) VALUES (?,?,?,?,?,?)",
+        (str(uuid.uuid4()), user["id"], body.name, body.response, result["score"], json.dumps(result)),
+    )
+    await db.commit()
+    return result
+
+
 def _get_rag_services():
     try:
         from services.rag_service import explain, learn_topic, tutor_chat
