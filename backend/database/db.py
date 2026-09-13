@@ -146,6 +146,8 @@ async def init_db():
             "ALTER TABLE attempts ADD COLUMN ai_sources TEXT",
             "ALTER TABLE questions ADD COLUMN sources TEXT",
             "ALTER TABLE questions ADD COLUMN needs_review INTEGER NOT NULL DEFAULT 0",
+            "ALTER TABLE questions ADD COLUMN fingerprint TEXT",
+            "ALTER TABLE questions ADD COLUMN needs_review INTEGER NOT NULL DEFAULT 0",
             "ALTER TABLE question_banks ADD COLUMN explanation_progress TEXT DEFAULT NULL",
             "ALTER TABLE question_banks ADD COLUMN user_id TEXT",
             "ALTER TABLE exam_sessions ADD COLUMN user_id TEXT",
@@ -162,6 +164,7 @@ async def init_db():
             "CREATE INDEX IF NOT EXISTS idx_wrong_user ON wrong_questions(user_id)",
             "CREATE INDEX IF NOT EXISTS idx_sessions_user ON exam_sessions(user_id)",
             "CREATE INDEX IF NOT EXISTS idx_banks_user ON question_banks(user_id)",
+            "CREATE INDEX IF NOT EXISTS idx_questions_fingerprint ON questions(fingerprint)",
             "CREATE INDEX IF NOT EXISTS idx_streaks_user ON study_streaks(user_id)",
         ]
         for stmt in index_migrations:
