@@ -83,38 +83,9 @@ async def start_exam(body: StartExamBody, user=Depends(get_current_user), db=Dep
     session_id = str(uuid.uuid4())
     questions  = [_parse_q(dict(r)) for r in rows]
 
-    # ── Pre-generate explanations INLINE before returning ──────────────
-    # This ensures every question has an explanation ready when the user
-    # clicks an answer. The trade-off is a slightly longer load time on
-    # "Start Exam / Start Practice", but zero wait time during the session.
-    missing = [q for q in questions if not (q.get("explanation") or "").strip()]
-    if missing:
-        logger.info(
-            "Exam %s: %d/%d questions missing explanations — generating inline before start",
-            session_id[:8], len(missing), len(questions),
-        )
-        try:
-            from services.rag_service import ensure_explanations
-            results = await ensure_explanations(missing, concurrency=_PREGEN_CONCURRENCY)
-
-            # Merge generated explanations back into the questions list
-            # and write them to DB so they persist for replays
-            result_map = {r["id"]: r for r in results}
-            for q in questions:
-                if q["id"] in result_map:
-                    exp = result_map[q["id"]]
-                    q["explanation"] = exp.get("explanation", "")
-                    q["sources"]     = exp.get("sources", [])
-                    # Persist to DB
-                    await db.execute(
-                        "UPDATE questions SET explanation = ?, sources = ? WHERE id = ?",
-                        (q["explanation"], json.dumps(q["sources"]), q["id"]),
-                    )
-            await db.commit()
-            logger.info("Exam %s: inline explanation generation complete", session_id[:8])
-        except Exception as e:
-            logger.error("Exam %s: inline explanation generation failed: %s", session_id[:8], e)
-            # Session can still start — some explanations may just show fallback text
+    # Start immediately. Explanation generation is handled by the dump
+    # processing job and on-demand RAG paths, so exam startup never waits on
+    # a provider call or a full-bank batch.
 
     await db.execute(
         """INSERT INTO exam_sessions
