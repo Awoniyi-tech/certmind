@@ -116,6 +116,20 @@ async def init_db():
                 UNIQUE(user_id, date)
             );
 
+            CREATE TABLE IF NOT EXISTS knowledge_sources (
+                id           TEXT PRIMARY KEY,
+                user_id      TEXT NOT NULL,
+                name         TEXT NOT NULL,
+                filename     TEXT NOT NULL,
+                cert_id      TEXT,
+                content_hash TEXT NOT NULL,
+                chunk_count  INTEGER DEFAULT 0,
+                status       TEXT NOT NULL DEFAULT 'queued',
+                error        TEXT,
+                created_at   TEXT DEFAULT (datetime('now')),
+                FOREIGN KEY (user_id) REFERENCES users(id)
+            );
+
             CREATE INDEX IF NOT EXISTS idx_questions_cert
                 ON questions(cert_id);
             CREATE INDEX IF NOT EXISTS idx_questions_bank
@@ -147,7 +161,6 @@ async def init_db():
             "ALTER TABLE questions ADD COLUMN sources TEXT",
             "ALTER TABLE questions ADD COLUMN needs_review INTEGER NOT NULL DEFAULT 0",
             "ALTER TABLE questions ADD COLUMN fingerprint TEXT",
-            "ALTER TABLE questions ADD COLUMN needs_review INTEGER NOT NULL DEFAULT 0",
             "ALTER TABLE question_banks ADD COLUMN explanation_progress TEXT DEFAULT NULL",
             "ALTER TABLE question_banks ADD COLUMN user_id TEXT",
             "ALTER TABLE exam_sessions ADD COLUMN user_id TEXT",
@@ -165,6 +178,7 @@ async def init_db():
             "CREATE INDEX IF NOT EXISTS idx_sessions_user ON exam_sessions(user_id)",
             "CREATE INDEX IF NOT EXISTS idx_banks_user ON question_banks(user_id)",
             "CREATE INDEX IF NOT EXISTS idx_questions_fingerprint ON questions(fingerprint)",
+            "CREATE INDEX IF NOT EXISTS idx_knowledge_sources_user ON knowledge_sources(user_id)",
             "CREATE INDEX IF NOT EXISTS idx_streaks_user ON study_streaks(user_id)",
         ]
         for stmt in index_migrations:
