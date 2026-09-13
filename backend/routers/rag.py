@@ -93,6 +93,35 @@ class EvaluateBody(BaseModel):
     require_json: bool = False
 
 
+class ExperimentCandidate(BaseModel):
+    name: str
+    response: str
+
+
+class ExperimentBody(BaseModel):
+    name: str = "Response comparison"
+    candidates: list[ExperimentCandidate]
+    expected: Optional[str] = None
+    required_phrases: list[str] = []
+    forbidden_phrases: list[str] = []
+    max_length: Optional[int] = None
+
+
+@router.post("/experiment")
+async def run_experiment(body: ExperimentBody, user=Depends(get_current_user), db=Depends(get_db)):
+    if not body.candidates or len(body.candidates) > 20:
+        raise HTTPException(422, "Provide between 1 and 20 candidates.")
+    from services.evaluation_service import evaluate_response as run_evaluation
+    results = []
+    for candidate in body.candidates:
+        evaluation = run_evaluation(candidate.response, body.expected, body.required_phrases, body.forbidden_phrases, body.max_length)
+        results.append({"name": candidate.name, "score": evaluation["score"], "passed": evaluation["passed"], "checks": evaluation["checks"]})
+    winner = max(results, key=lambda item: item["score"])["name"]
+    await db.execute("INSERT INTO experiments (id, user_id, name, definition, results, winner) VALUES (?,?,?,?,?,?)", (str(uuid.uuid4()), user["id"], body.name, json.dumps(body.model_dump()), json.dumps(results), winner))
+    await db.commit()
+    return {"name": body.name, "winner": winner, "results": results}
+
+
 @router.post("/evaluate")
 async def evaluate_response(body: EvaluateBody, user=Depends(get_current_user), db=Depends(get_db)):
     from services.evaluation_service import evaluate_response as run_evaluation
