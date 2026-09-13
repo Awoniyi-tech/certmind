@@ -78,6 +78,7 @@ export const ragAPI = {
   knowledgeSources: () => api.get('/rag/knowledge/sources').then(r => r.data),
   evaluate: (body) => api.post('/rag/evaluate', body).then(r => r.data),
   experiment: (body) => api.post('/rag/experiment', body).then(r => r.data),
+  runPrompt: (body) => api.post('/rag/run-prompt', body).then(r => r.data),
 }
 
 export const dumpsAPI = {
