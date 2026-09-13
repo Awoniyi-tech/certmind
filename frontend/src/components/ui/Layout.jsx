@@ -1,7 +1,7 @@
 import { NavLink, useLocation, useNavigate } from 'react-router-dom'
 import {
   LayoutDashboard, BookOpen, Target, Timer, XCircle,
-  MessageSquare, BarChart3, Upload, Zap, LogOut, User, Flame
+  MessageSquare, BarChart3, Upload, Zap, LogOut, BookMarked
 } from 'lucide-react'
 import { useStore } from '../../store/useStore.js'
 import { useAuthStore } from '../../store/authStore.js'
@@ -15,6 +15,7 @@ const NAV_ITEMS = [
   { to: '/tutor',          icon: MessageSquare,   label: 'AI Tutor' },
   { to: '/analytics',      icon: BarChart3,       label: 'Analytics' },
   { to: '/dumps',          icon: Upload,          label: 'Dump Manager' },
+  { to: '/knowledge',      icon: BookMarked,      label: 'Personal Knowledge' },
 ]
 
 export default function Layout({ children }) {
@@ -126,3 +127,4 @@ export default function Layout({ children }) {
     </div>
   )
 }
+
