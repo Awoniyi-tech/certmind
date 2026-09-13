@@ -80,6 +80,7 @@ export const ragAPI = {
   experiment: (body) => api.post('/rag/experiment', body).then(r => r.data),
   runPrompt: (body) => api.post('/rag/run-prompt', body).then(r => r.data),
   compareModels: (body) => api.post('/rag/compare-models', body).then(r => r.data),
+  runs: (limit = 50) => api.get('/rag/runs', { params: { limit } }).then(r => r.data),
 }
 
 export const dumpsAPI = {
