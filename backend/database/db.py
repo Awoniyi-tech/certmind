@@ -9,6 +9,7 @@ DB_PATH = Path(os.getenv("DB_PATH", "./data/certmind.db"))
 async def init_db():
     DB_PATH.parent.mkdir(parents=True, exist_ok=True)
     async with aiosqlite.connect(DB_PATH) as db:
+        await db.execute("PRAGMA foreign_keys = ON")
         # ---------------------------------------------------------------
         # Core tables — CREATE IF NOT EXISTS is safe for fresh installs.
         # For existing databases, the ALTER TABLE migrations below add
@@ -144,6 +145,7 @@ async def init_db():
             "ALTER TABLE attempts ADD COLUMN ai_explanation TEXT",
             "ALTER TABLE attempts ADD COLUMN ai_sources TEXT",
             "ALTER TABLE questions ADD COLUMN sources TEXT",
+            "ALTER TABLE questions ADD COLUMN needs_review INTEGER NOT NULL DEFAULT 0",
             "ALTER TABLE question_banks ADD COLUMN explanation_progress TEXT DEFAULT NULL",
             "ALTER TABLE question_banks ADD COLUMN user_id TEXT",
             "ALTER TABLE exam_sessions ADD COLUMN user_id TEXT",
@@ -173,5 +175,7 @@ async def init_db():
 
 async def get_db():
     async with aiosqlite.connect(DB_PATH) as db:
+        await db.execute("PRAGMA foreign_keys = ON")
         db.row_factory = aiosqlite.Row
         yield db
+
