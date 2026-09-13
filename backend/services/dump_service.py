@@ -120,7 +120,8 @@ def _parse_block(block: str, cert_id: str, bank_id: str) -> Optional[dict]:
         "topic":      topic,
         "question":   question_text,
         "options":    options,
-        "answer_key": answer_key or "A",
+        "answer_key": answer_key,
+        "needs_review": answer_key is None,
         "difficulty": "medium",
     }
 
@@ -166,3 +167,4 @@ def _detect_topic(question: str) -> str:
             return topic
 
     return "General"
+
