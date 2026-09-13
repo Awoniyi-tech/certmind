@@ -107,6 +107,26 @@ class ExperimentBody(BaseModel):
     max_length: Optional[int] = None
 
 
+class RunPromptBody(BaseModel):
+    prompt: str
+    model: str = "gemini-2.5-flash"
+
+
+@router.post("/run-prompt")
+async def run_prompt(body: RunPromptBody, user=Depends(get_current_user)):
+    if len(body.prompt.strip()) < 1:
+        raise HTTPException(422, "Prompt cannot be empty.")
+    if len(body.prompt) > 100_000:
+        raise HTTPException(413, "Prompt is too large.")
+    try:
+        from services.model_runner import run_gemini
+        return await run_gemini(body.prompt, body.model)
+    except RuntimeError as exc:
+        raise HTTPException(503, str(exc))
+    except Exception:
+        raise HTTPException(502, "The model provider could not complete the request.")
+
+
 @router.post("/experiment")
 async def run_experiment(body: ExperimentBody, user=Depends(get_current_user), db=Depends(get_db)):
     if not body.candidates or len(body.candidates) > 20:
