@@ -20,6 +20,7 @@ class ExplainBody(BaseModel):
     topic:       Optional[str] = None
     cert_id:     Optional[str] = "hcip-datacom"
     attempt_id:  Optional[str] = None
+    source_scope: str = "official"
 
 
 class LearnBody(BaseModel):
@@ -72,6 +73,8 @@ async def explain_answer(body: ExplainBody, user=Depends(get_current_user), db=D
         user_answer=body.user_answer,
         topic=body.topic,
         cert_id=body.cert_id,
+        source_scope=body.source_scope,
+        user_id=user["id"],
     )
 
     if body.attempt_id:
