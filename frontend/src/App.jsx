@@ -14,6 +14,7 @@ import AITutor from './pages/AITutor.jsx'
 import Analytics from './pages/Analytics.jsx'
 import Dumps from './pages/Dumps.jsx'
 import Knowledge from './pages/Knowledge.jsx'
+import EvaluationLab from './pages/EvaluationLab.jsx'
 
 function ProtectedRoute({ children }) {
   const { isAuthenticated, loading } = useAuthStore()
@@ -69,6 +70,7 @@ export default function App() {
                 <Route path="/analytics" element={<Analytics />} />
                 <Route path="/dumps" element={<Dumps />} />
                 <Route path="/knowledge" element={<Knowledge />} />
+                <Route path="/evaluations" element={<EvaluationLab />} />
               </Routes>
             </Layout>
           </ProtectedRoute>
