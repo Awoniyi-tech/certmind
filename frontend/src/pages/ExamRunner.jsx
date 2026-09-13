@@ -1,7 +1,7 @@
 import { useState, useEffect, useRef } from 'react'
 import { useParams, useLocation, useNavigate } from 'react-router-dom'
 import { ChevronLeft, ChevronRight, Flag, Loader } from 'lucide-react'
-import { examAPI } from '../lib/api.js'
+import { examAPI, ragAPI } from '../lib/api.js'
 import OptionButton from '../components/exam/OptionButton.jsx'
 import ConfidenceSelector from '../components/exam/ConfidenceSelector.jsx'
 import ExamTimer from '../components/exam/ExamTimer.jsx'
@@ -24,6 +24,8 @@ export default function ExamRunner() {
   const [multiSel, setMultiSel] = useState([])
   const [submitting, setSubmitting]       = useState(false)
   const [finishing, setFinishing]         = useState(false)
+  const [sourceScope, setSourceScope]     = useState('official')
+  const [explaining, setExplaining]       = useState(false)
 
   const q        = questions[idx]
   const total    = questions.length
@@ -56,8 +58,25 @@ export default function ExamRunner() {
       setConf(null)
       setMultiSel([])
 
-      // Explanations are already pre-loaded on each question object.
-      // No on-demand LLM calls needed — instant display!
+      setExplaining(true)
+      try {
+        const explanation = await ragAPI.explain({
+          question: q.question,
+          options: q.options,
+          answer_key: q.answer_key,
+          user_answer: selected,
+          topic: q.topic,
+          cert_id: q.cert_id || session.cert_id,
+          attempt_id: res.attempt_id,
+          source_scope: sourceScope,
+        })
+        setQuestions(current => current.map(item => item.id === q.id
+          ? { ...item, explanation: explanation.explanation, sources: explanation.sources || [] }
+          : item
+        ))
+      } finally {
+        setExplaining(false)
+      }
     } catch (e) {
       console.error('Submit failed', e)
     } finally {
@@ -154,6 +173,15 @@ export default function ExamRunner() {
             <Badge variant="default">
               {{ single: 'Single', multiple: 'Multiple', truefalse: 'True/False' }[q.type] ?? q.type}
             </Badge>
+          </div>
+
+          <div className="flex items-center justify-between gap-3 rounded-xl border border-border bg-elevated/30 px-4 py-3">
+            <div><p className="text-xs font-semibold text-ink">Explanation sources</p><p className="text-[11px] text-muted mt-0.5">Choose what the AI coach may use.</p></div>
+            <select value={sourceScope} onChange={e => setSourceScope(e.target.value)} className="bg-surface border border-border rounded-lg px-2.5 py-2 text-xs text-ink outline-none">
+              <option value="official">Official knowledge</option>
+              <option value="personal">My knowledge</option>
+              <option value="both">Official + my knowledge</option>
+            </select>
           </div>
 
           {/* Question */}
@@ -255,7 +283,7 @@ export default function ExamRunner() {
                 </div>
               ) : (
                 <div className="text-sm text-warning/80 bg-warning/5 border border-warning/15 rounded-xl px-4 py-3">
-                  <div className="font-medium mb-1">Explanation unavailable</div>
+                  <div className="font-medium mb-1">{explaining ? 'Generating grounded explanation...' : 'Explanation unavailable'}</div>
                   <div className="text-muted">
                     The correct answer is <span className="font-semibold text-ink">{Array.isArray(q.answer_key) ? q.answer_key.join(', ') : q.answer_key}</span>.
                     The system could not generate an explanation for this question at this time.
@@ -302,3 +330,4 @@ export default function ExamRunner() {
     </div>
   )
 }
+
