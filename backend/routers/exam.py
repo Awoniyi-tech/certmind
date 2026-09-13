@@ -37,10 +37,20 @@ class SubmitAnswerBody(BaseModel):
 
 @router.post("/start")
 async def start_exam(body: StartExamBody, user=Depends(get_current_user), db=Depends(get_db)):
+    if body.total < 1 or body.total > 200:
+        raise HTTPException(422, "total must be between 1 and 200.")
+    if body.session_type not in {"exam", "practice", "review"}:
+        raise HTTPException(422, "Invalid session type.")
     params     = [body.cert_id]
     where_clauses = ["q.cert_id = ?"]
 
     if body.bank_id:
+        async with db.execute(
+            "SELECT id FROM question_banks WHERE id = ? AND cert_id = ? AND (user_id = ? OR user_id IS NULL)",
+            (body.bank_id, body.cert_id, user["id"]),
+        ) as cur:
+            if not await cur.fetchone():
+                raise HTTPException(404, "Question bank not found or access denied.")
         where_clauses.append("q.bank_id = ?")
         params.append(body.bank_id)
     else:
@@ -134,14 +144,21 @@ async def submit_answer(
 ):
     # Verify session belongs to user
     async with db.execute(
-        "SELECT id FROM exam_sessions WHERE id = ? AND user_id = ?",
+        "SELECT id, status FROM exam_sessions WHERE id = ? AND user_id = ?",
         (session_id, user["id"]),
     ) as cur:
-        if not await cur.fetchone():
+        session = await cur.fetchone()
+        if not session:
             raise HTTPException(403, "Session not found or access denied.")
+        if session["status"] != "active":
+            raise HTTPException(409, "This exam session is no longer active.")
 
     async with db.execute(
-        "SELECT * FROM questions WHERE id = ?", (body.question_id,)
+        """SELECT q.* FROM questions q
+           JOIN exam_sessions s ON s.id = ?
+           WHERE q.id = ? AND q.cert_id = s.cert_id
+             AND (s.bank_id IS NULL OR q.bank_id = s.bank_id)""",
+        (session_id, body.question_id),
     ) as cur:
         row = await cur.fetchone()
 
@@ -212,11 +229,14 @@ async def submit_answer(
 async def finish_exam(session_id: str, time_taken_s: int = 0, user=Depends(get_current_user), db=Depends(get_db)):
     # Verify session belongs to user
     async with db.execute(
-        "SELECT id FROM exam_sessions WHERE id = ? AND user_id = ?",
+        "SELECT id, status FROM exam_sessions WHERE id = ? AND user_id = ?",
         (session_id, user["id"]),
     ) as cur:
-        if not await cur.fetchone():
+        session = await cur.fetchone()
+        if not session:
             raise HTTPException(403, "Session not found or access denied.")
+        if session["status"] != "active":
+            raise HTTPException(409, "This exam session is already finished.")
 
     async with db.execute(
         "SELECT COUNT(*) as total, SUM(is_correct) as correct "
@@ -313,6 +333,7 @@ async def get_replay(session_id: str, user=Depends(get_current_user), db=Depends
 
 @router.get("/sessions")
 async def list_sessions(cert_id: Optional[str] = None, limit: int = 20, user=Depends(get_current_user), db=Depends(get_db)):
+    limit = min(max(limit, 1), 100)
     conditions = ["user_id = ?"]
     params = [user["id"]]
 
@@ -348,6 +369,8 @@ def _parse_q(row: dict) -> dict:
             row[k] = json.loads(row[k])
         except Exception:
             pass
+    if row.get("answer_key") == "":
+        row["answer_key"] = None
     try:
         row["sources"] = json.loads(row.get("sources") or "[]")
     except Exception:
@@ -377,3 +400,4 @@ def _parse_attempt(row: dict) -> dict:
             row["sources"] = []
 
     return row
+
