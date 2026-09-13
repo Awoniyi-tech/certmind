@@ -76,6 +76,7 @@ export const ragAPI = {
     return api.post('/rag/knowledge/upload', form, { headers: { 'Content-Type': 'multipart/form-data' } }).then(r => r.data)
   },
   knowledgeSources: () => api.get('/rag/knowledge/sources').then(r => r.data),
+  evaluate: (body) => api.post('/rag/evaluate', body).then(r => r.data),
 }
 
 export const dumpsAPI = {
