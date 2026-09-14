@@ -12,6 +12,11 @@ from database.db import init_db
 from routers import questions, exam, analytics, rag, dumps, auth
 
 
+def _allowed_origins() -> list[str]:
+    configured = os.getenv("FRONTEND_URL", "").strip()
+    return [origin for origin in ["http://localhost:5173", "http://localhost:3000", configured] if origin]
+
+
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     await init_db()
@@ -27,8 +32,7 @@ app = FastAPI(
 app.add_middleware(GZipMiddleware, minimum_size=1000)
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["http://localhost:5173", "http://localhost:3000",
-                   os.getenv("FRONTEND_URL", "")],
+    allow_origins=_allowed_origins(),
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
@@ -45,3 +49,18 @@ app.include_router(dumps.router,      prefix="/api/dumps",     tags=["dumps"])
 @app.get("/health")
 async def health():
     return {"status": "ok", "version": "2.0.0"}
+
+
+@app.get("/ready")
+async def ready():
+    """Readiness probe that verifies the database can be opened."""
+    import aiosqlite
+    from database.db import DB_PATH
+    try:
+        async with aiosqlite.connect(DB_PATH) as db:
+            await db.execute("SELECT 1")
+        return {"status": "ready", "database": "ok"}
+    except Exception:
+        from fastapi import HTTPException
+        raise HTTPException(status_code=503, detail={"status": "not_ready", "database": "unavailable"})
+
