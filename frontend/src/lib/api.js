@@ -81,6 +81,7 @@ export const ragAPI = {
   runPrompt: (body) => api.post('/rag/run-prompt', body).then(r => r.data),
   compareModels: (body) => api.post('/rag/compare-models', body).then(r => r.data),
   runs: (limit = 50) => api.get('/rag/runs', { params: { limit } }).then(r => r.data),
+  observability: () => api.get('/rag/observability').then(r => r.data),
 }
 
 export const dumpsAPI = {
