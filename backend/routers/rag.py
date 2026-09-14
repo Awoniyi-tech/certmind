@@ -185,6 +185,50 @@ async def list_model_runs(limit: int = 50, user=Depends(get_current_user), db=De
         return [dict(row) for row in await cur.fetchall()]
 
 
+@router.get("/observability")
+async def observability(user=Depends(get_current_user), db=Depends(get_db)):
+    async with db.execute(
+        "SELECT model, status, latency_ms, input_tokens, output_tokens, estimated_cost_usd, error, created_at FROM llm_runs WHERE user_id = ? ORDER BY created_at DESC LIMIT 1000",
+        (user["id"],),
+    ) as cur:
+        rows = [dict(row) for row in await cur.fetchall()]
+    completed = [row for row in rows if row["status"] == "completed"]
+    latencies = sorted(row["latency_ms"] for row in completed if row["latency_ms"] is not None)
+    total_cost = round(sum(row["estimated_cost_usd"] or 0 for row in rows), 6)
+    model_summary = {}
+    for row in rows:
+        bucket = model_summary.setdefault(row["model"], {"model": row["model"], "runs": 0, "failures": 0, "cost": 0, "latency_ms": []})
+        bucket["runs"] += 1
+        bucket["failures"] += int(row["status"] != "completed")
+        bucket["cost"] += row["estimated_cost_usd"] or 0
+        if row["latency_ms"] is not None:
+            bucket["latency_ms"].append(row["latency_ms"])
+    for bucket in model_summary.values():
+        values = bucket.pop("latency_ms")
+        bucket["avg_latency_ms"] = round(sum(values) / len(values), 1) if values else 0
+        bucket["cost"] = round(bucket["cost"], 6)
+    return {
+        "total_runs": len(rows),
+        "successful_runs": len(completed),
+        "failed_runs": len(rows) - len(completed),
+        "total_cost_usd": total_cost,
+        "latency_ms": {
+            "p50": _percentile(latencies, 0.50),
+            "p95": _percentile(latencies, 0.95),
+            "p99": _percentile(latencies, 0.99),
+        },
+        "models": list(model_summary.values()),
+        "recent_runs": rows[:20],
+    }
+
+
+def _percentile(values: list[float], percentile: float) -> float:
+    if not values:
+        return 0
+    index = min(len(values) - 1, max(0, round((len(values) - 1) * percentile)))
+    return round(values[index], 1)
+
+
 @router.post("/experiment")
 async def run_experiment(body: ExperimentBody, user=Depends(get_current_user), db=Depends(get_db)):
     if not body.candidates or len(body.candidates) > 20:
@@ -466,7 +510,7 @@ async def list_certifications():
 
 
 # ---------------------------------------------------------------------------
-# Cache helpers (inline for simplicity — Phase 3)
+# Cache helpers (inline for simplicity â€” Phase 3)
 # ---------------------------------------------------------------------------
 import hashlib
 from datetime import datetime, timedelta, timezone
