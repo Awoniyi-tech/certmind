@@ -1,6 +1,7 @@
 import asyncio
 import hashlib
 import json
+import logging
 import os
 import uuid
 from pathlib import Path
@@ -13,6 +14,7 @@ from database.db import get_db
 from routers.auth import get_current_user
 
 router = APIRouter()
+logger = logging.getLogger(__name__)
 
 
 async def _record_llm_run(db, user_id: str, prompt: str, result: dict):
@@ -359,8 +361,13 @@ async def generate_questions_route(
         count=body.count,
         q_types=body.q_types,
     )
+    if result.get("error"):
+        logger.error("Question generation failed for user %s: %s", user["id"], result["error"])
+        if not os.getenv("GOOGLE_API_KEY") or os.getenv("GOOGLE_API_KEY", "").startswith("your_"):
+            raise HTTPException(503, "Question generation requires a configured GOOGLE_API_KEY in backend/.env.")
+        raise HTTPException(503, "The AI question generator is temporarily unavailable. Check the backend logs.")
     if not result.get("questions"):
-        raise HTTPException(500, "Could not generate questions.")
+        raise HTTPException(502, "The model returned no valid questions. Try a smaller question count or different topic.")
 
     bank_id = str(uuid.uuid4())
     await db.execute(
