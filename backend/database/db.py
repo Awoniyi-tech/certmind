@@ -11,7 +11,7 @@ async def init_db():
     async with aiosqlite.connect(DB_PATH) as db:
         await db.execute("PRAGMA foreign_keys = ON")
         # ---------------------------------------------------------------
-        # Core tables — CREATE IF NOT EXISTS is safe for fresh installs.
+        # Core tables â€” CREATE IF NOT EXISTS is safe for fresh installs.
         # For existing databases, the ALTER TABLE migrations below add
         # any columns that were introduced after initial release.
         # ---------------------------------------------------------------
@@ -188,7 +188,7 @@ async def init_db():
         """)
 
         # ---------------------------------------------------------------
-        # Migrations — add columns that were introduced after v1.
+        # Migrations â€” add columns that were introduced after v1.
         # Each ALTER TABLE is wrapped in try/except so it silently skips
         # if the column already exists.
         # ---------------------------------------------------------------
@@ -207,7 +207,7 @@ async def init_db():
             try:
                 await db.execute(stmt)
             except Exception:
-                pass  # column already exists — nothing to do
+                pass  # column already exists â€” nothing to do
 
         # Create indexes for the new user_id columns (safe to re-run)
         index_migrations = [
