@@ -1,7 +1,7 @@
 import { NavLink, useLocation, useNavigate } from 'react-router-dom'
 import {
   LayoutDashboard, BookOpen, Target, Timer, XCircle,
-  MessageSquare, BarChart3, Upload, Zap, LogOut, BookMarked, ClipboardCheck, FlaskConical
+  MessageSquare, BarChart3, Upload, Zap, LogOut, BookMarked, ClipboardCheck, FlaskConical, Activity
 } from 'lucide-react'
 import { useStore } from '../../store/useStore.js'
 import { useAuthStore } from '../../store/authStore.js'
@@ -18,6 +18,7 @@ const NAV_ITEMS = [
   { to: '/knowledge',      icon: BookMarked,      label: 'Personal Knowledge' },
   { to: '/evaluations',    icon: ClipboardCheck,  label: 'Evaluation Lab' },
   { to: '/experiments',    icon: FlaskConical,    label: 'Experiment Lab' },
+  { to: '/observability',  icon: Activity,        label: 'Observability' },
 ]
 
 export default function Layout({ children }) {
