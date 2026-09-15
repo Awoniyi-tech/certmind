@@ -26,6 +26,7 @@ export default function ExamRunner() {
   const [finishing, setFinishing]         = useState(false)
   const [sourceScope, setSourceScope]     = useState('official')
   const [explaining, setExplaining]       = useState(false)
+  const [explanationError, setExplanationError] = useState('')
 
   const q        = questions[idx]
   const total    = questions.length
@@ -57,29 +58,30 @@ export default function ExamRunner() {
       setResults(r => ({ ...r, [idx]: res }))
       setConf(null)
       setMultiSel([])
-
+      // Unlock navigation as soon as the answer is recorded. AI explanation
+      // generation is deliberately non-blocking.
+      setSubmitting(false)
       setExplaining(true)
-      try {
-        const explanation = await ragAPI.explain({
-          question: q.question,
-          options: q.options,
-          answer_key: q.answer_key,
-          user_answer: selected,
-          topic: q.topic,
-          cert_id: q.cert_id || session.cert_id,
-          attempt_id: res.attempt_id,
-          source_scope: sourceScope,
-        })
+      setExplanationError('')
+      ragAPI.explain({
+        question: q.question,
+        options: q.options,
+        answer_key: q.answer_key,
+        user_answer: selected,
+        topic: q.topic,
+        cert_id: q.cert_id || session.cert_id,
+        attempt_id: res.attempt_id,
+        source_scope: sourceScope,
+      }).then(explanation => {
         setQuestions(current => current.map(item => item.id === q.id
           ? { ...item, explanation: explanation.explanation, sources: explanation.sources || [] }
           : item
         ))
-      } finally {
-        setExplaining(false)
-      }
+      }).catch(() => {
+        setExplanationError('Explanation is temporarily unavailable. You can continue to the next question.')
+      }).finally(() => setExplaining(false))
     } catch (e) {
       console.error('Submit failed', e)
-    } finally {
       setSubmitting(false)
     }
   }
@@ -286,7 +288,7 @@ export default function ExamRunner() {
                   <div className="font-medium mb-1">{explaining ? 'Generating grounded explanation...' : 'Explanation unavailable'}</div>
                   <div className="text-muted">
                     The correct answer is <span className="font-semibold text-ink">{Array.isArray(q.answer_key) ? q.answer_key.join(', ') : q.answer_key}</span>.
-                    The system could not generate an explanation for this question at this time.
+                    {explanationError || 'The system could not generate an explanation for this question at this time.'}
                   </div>
                 </div>
               )}
