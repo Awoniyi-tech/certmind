@@ -26,7 +26,7 @@ export default function Practice() {
   const [loading, setLoading] = useState(false)
   const [error, setError]     = useState('')
 
-  // Source selection — same as ExamSetup
+  // Source selection â€” same as ExamSetup
   const [tab, setTab]         = useState('generate')
   const [banks, setBanks]     = useState([])
   const [selBank, setSelBank] = useState(null)
@@ -85,7 +85,7 @@ export default function Practice() {
         <p className="text-sm text-muted mt-1">Choose your focus area and question source</p>
       </div>
 
-      {/* Question Source — Generate vs Dump Bank */}
+      {/* Question Source â€” Generate vs Dump Bank */}
       <Card>
         <div className="text-xs font-semibold text-muted uppercase tracking-wider mb-3">
           Question Source
@@ -116,7 +116,7 @@ export default function Practice() {
               <RefreshCw size={14} className="mt-0.5 shrink-0" />
               <div>
                 <span className="font-semibold">Fresh questions every time</span>
-                <span className="text-muted ml-1">— AI generates brand new questions. Explanations are pre-generated so they appear instantly.</span>
+                <span className="text-muted ml-1">â€” AI generates brand new questions. Explanations are pre-generated so they appear instantly.</span>
               </div>
             </div>
           </div>
@@ -258,14 +258,14 @@ export default function Practice() {
         {loading ? (
           <span className="flex items-center gap-2">
             <span className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />
-            {tab === 'generate' ? 'Generating questions & explanations...' : 'Preparing practice...'}
+            {tab === 'generate' ? 'Generating questions...' : 'Preparing practice...'}
           </span>
         ) : (
           <>
             {tab === 'generate' ? <Sparkles size={18} /> : <Target size={18} />}
             {tab === 'generate'
-              ? `Generate & Start · ${effectiveCount || '?'} Questions`
-              : `Start Practice · ${effectiveCount || '?'} Questions`
+              ? `Generate & Start Â· ${effectiveCount || '?'} Questions`
+              : `Start Practice Â· ${effectiveCount || '?'} Questions`
             }
             <ChevronRight size={16} />
           </>
@@ -274,3 +274,4 @@ export default function Practice() {
     </div>
   )
 }
+
