@@ -103,8 +103,8 @@ export default function ExamRunner() {
     const letter = opt[0].toUpperCase()
     if (!answered) return 'idle'
     const correctKey = Array.isArray(q.answer_key)
-      ? q.answer_key.map(k => k.toUpperCase())
-      : [q.answer_key.toUpperCase()]
+      ? q.answer_key.map(k => String(k).toUpperCase())
+      : q.answer_key ? [String(q.answer_key).toUpperCase()] : []
     const userAns = Array.isArray(answers[idx])
       ? answers[idx].map(k => k.toUpperCase())
       : [String(answers[idx]).toUpperCase()]
