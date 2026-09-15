@@ -13,6 +13,13 @@ const FEATURED_TOPICS = [
   'IS-IS Routing', 'QoS MQC', 'IPv6 NDP', 'DHCP Relay',
 ]
 
+function cleanLessonText(value) {
+  return String(value || '')
+    .replace(/\*\*([^*]+)\*\*/g, '$1')
+    .replace(/^\s*\*\s+/gm, 'â€¢ ')
+    .replace(/^\s*#{1,6}\s*/gm, '')
+}
+
 export default function Learn() {
   const { selectedCert } = useStore()
   const [searchParams]   = useSearchParams()
@@ -31,13 +38,13 @@ export default function Learn() {
     if (t) { setTopic(t); fetchContent(t) }
   }, [searchParams])
 
-  async function fetchContent(t) {
+  async function fetchContent(t, requestedDepth = depth) {
     const query = t || topic
     if (!query.trim()) return
     setLoading(true)
     setContent(null)
     try {
-      const res = await ragAPI.learn({ topic: query, cert_id: selectedCert, depth })
+      const res = await ragAPI.learn({ topic: query, cert_id: selectedCert, depth: requestedDepth })
       setContent(res)
     } catch {
       setContent({ content: 'Could not load topic. Check your knowledge base.', topic: query, sources: [] })
@@ -139,14 +146,14 @@ export default function Learn() {
               {depth === 'deep' && <Badge variant="accent">Deep Dive</Badge>}
             </div>
             <Button variant="ghost" size="sm" onClick={() => setContent(null)}>
-              ← Back
+              â† Back
             </Button>
           </div>
 
           <Card>
             <div className="prose prose-invert max-w-none">
               <pre className="whitespace-pre-wrap font-body text-sm text-ink/90 leading-relaxed">
-                {content.content}
+                {cleanLessonText(content.content)}
               </pre>
             </div>
 
@@ -167,10 +174,10 @@ export default function Learn() {
           <div className="flex gap-3">
             <Button
               variant="secondary"
-              onClick={() => { setDepth('deep'); fetchContent() }}
+              onClick={() => { setDepth('deep'); fetchContent(undefined, 'deep') }}
               disabled={depth === 'deep' || loading}
             >
-              Deep Dive →
+              Deep Dive â†’
             </Button>
             <Button
               variant="ghost"
@@ -187,3 +194,4 @@ export default function Learn() {
     </div>
   )
 }
+
