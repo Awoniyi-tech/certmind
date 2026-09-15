@@ -15,6 +15,7 @@ import logging
 import os
 import time
 import uuid
+from pathlib import Path
 from typing import Callable, Optional
 
 logger = logging.getLogger(__name__)
@@ -26,7 +27,8 @@ _embed_model = None
 _chroma_client = None
 _collection = None
 
-CHROMA_PATH     = os.getenv("CHROMA_PATH", r"C:\Users\User\Desktop\netmind\data\chroma_db")
+DEFAULT_CHROMA_PATH = str(Path(__file__).resolve().parents[1] / "data" / "chroma_db")
+CHROMA_PATH     = os.getenv("CHROMA_PATH", DEFAULT_CHROMA_PATH)
 EMBEDDING_MODEL = "all-MiniLM-L6-v2"
 COLLECTION_NAME = "langchain"          # default name LangChain-Chroma uses
 
@@ -652,13 +654,13 @@ async def learn_topic(
         from langchain_core.output_parsers import StrOutputParser
 
         vendor  = _cert_to_vendor(cert_id)
-        docs    = _retrieve(topic, vendor_filter=vendor, k=8)
+        docs    = _retrieve(topic, vendor_filter=vendor, k=6)
         context = "\n\n".join(d["page_content"] for d in docs) if docs else ""
 
         depth_instruction = (
-            "Provide a comprehensive deep-dive including edge cases, "
-            "troubleshooting, and advanced configuration." if depth == "deep"
-            else "Provide a clear, exam-focused explanation."
+            "Teach this as a deep-dive lesson, but keep it in clear sections. Include one practical scenario, troubleshooting, and advanced exam traps."
+            if depth == "deep" else
+            "Teach only the foundation first. Keep it concise enough to finish in one sitting and prepare the learner for a later deep dive."
         )
 
         prompt = f"""You are an elite {_cert_to_name(cert_id)} instructor.
@@ -666,27 +668,38 @@ async def learn_topic(
 Topic: {topic}
 {depth_instruction}
 
-Documentation:
+Retrieved documentation (use it as evidence, but rewrite it; never paste it verbatim):
 {context if context else "Use your expert knowledge."}
 
-Structure:
-## Overview
-[2-3 sentence definition]
+Write a clean lesson for a student. Do not copy the Markdown formatting from the documentation. Do not use literal `**`, `***`, or bullet characters like `*`. Use plain headings and numbered lists only.
 
-## Key Concepts
-[Bullet points of core ideas]
+For a standard lesson, use exactly:
 
-## How It Works
-[Step-by-step technical explanation]
+1. Overview (2-3 sentences)
+2. Learning objectives (3 short items)
+3. Core idea (simple explanation)
+4. Key concepts (5-7 numbered items)
+5. Quick check (3 questions, without answers)
+6. Next step: tell the learner what the deep dive would cover.
 
-## Configuration Example
-[Huawei VRP or relevant vendor CLI commands]
+For a deep lesson, use exactly:
 
-## Common Exam Questions
-[3 example question areas to watch for]
+1. Deep overview
+2. How it works (numbered sequence)
+3. Configuration or verification example
+4. Edge cases and troubleshooting
+5. Exam traps
+6. Quick reference
 
-## Quick Reference
-[Key facts to memorize]"""
+{depth_instruction}
+
+Rules:
+- Rewrite and teach the source; do not return retrieved chunks as-is.
+- Never invent vendor commands or values. If the source does not support a detail, say so.
+- Keep standard lessons under 500 words and deep lessons under 900 words.
+- Use clean plain text headings and numbered lists; no asterisk-based Markdown.
+
+"""
 
         llm   = ChatGoogleGenerativeAI(
             model="gemini-2.5-flash",
@@ -694,7 +707,7 @@ Structure:
             google_api_key=os.getenv("GOOGLE_API_KEY"),
         )
         chain = ChatPromptTemplate.from_messages([("human", "{input}")]) | llm | StrOutputParser()
-        text  = chain.invoke({"input": prompt})
+        text  = await asyncio.wait_for(chain.ainvoke({"input": prompt}), timeout=60)
 
         sources = [d["metadata"].get("source", "") for d in docs]
         return {"content": text, "topic": topic, "sources": sources}
@@ -741,7 +754,7 @@ Respond directly and technically. Use Huawei VRP syntax where relevant."""
             google_api_key=os.getenv("GOOGLE_API_KEY"),
         )
         chain = ChatPromptTemplate.from_messages([("human", "{input}")]) | llm | StrOutputParser()
-        text  = chain.invoke({"input": prompt})
+        text  = await asyncio.wait_for(chain.ainvoke({"input": prompt}), timeout=60)
 
         sources = [d["metadata"].get("source", "") for d in docs]
         return {"response": text, "sources": sources}
