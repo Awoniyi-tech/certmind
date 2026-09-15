@@ -163,7 +163,7 @@ Critical rules:
             google_api_key=os.getenv("GOOGLE_API_KEY"),
         )
         chain = ChatPromptTemplate.from_messages([("human", "{input}")]) | llm | StrOutputParser()
-        text  = chain.invoke({"input": prompt_text})
+        text  = await asyncio.wait_for(chain.ainvoke({"input": prompt_text}), timeout=60)
 
         return {"explanation": text, "sources": sources}
 
