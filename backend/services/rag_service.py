@@ -168,10 +168,13 @@ Critical rules:
         return {"explanation": text, "sources": sources}
 
     except Exception as e:
+        error_text = str(e)
+        retryable = any(code in error_text.lower() for code in ("429", "too many", "resource_exhausted", "503", "service unavailable"))
         return {
-            "explanation": f"The correct answer is {answer_key}.",
+            "explanation": "",
             "sources":     [],
-            "error":       str(e),
+            "error":       error_text,
+            "retryable":   retryable,
         }
 
 
