@@ -88,8 +88,8 @@ async def process_dump(bank_id: str, user=Depends(get_current_user), db=Depends(
     for q in questions:
         await db.execute(
             """INSERT OR IGNORE INTO questions
-               (id, bank_id, cert_id, type, topic, question, options, answer_key, difficulty, needs_review)
-               VALUES (?,?,?,?,?,?,?,?,?,?)""",
+               (id, bank_id, cert_id, type, topic, question, options, answer_key, difficulty, needs_review, fingerprint)
+               VALUES (?,?,?,?,?,?,?,?,?,?,?)""",
             (
                 q["id"], bank_id, bank["cert_id"],
                 q["type"], q.get("topic"),
@@ -100,7 +100,6 @@ async def process_dump(bank_id: str, user=Depends(get_current_user), db=Depends(
                 q.get("difficulty", "medium"),
                 1 if q.get("needs_review") else 0,
                 q.get("fingerprint"),
-                1 if q.get("needs_review") else 0,
             ),
         )
 
@@ -110,21 +109,17 @@ async def process_dump(bank_id: str, user=Depends(get_current_user), db=Depends(
     )
     await db.commit()
 
-    # Fire background explanation generation — does NOT block the response
-    asyncio.create_task(
-        _generate_explanations_background(bank_id, questions, bank["cert_id"])
-    )
-    logger.info(
-        "Dump %s processed: %d questions extracted. Explanation generation started in background.",
-        bank_id[:8], len(questions),
-    )
+    # Explanations are generated on demand when a learner answers a question.
+    # Do not fan out one provider call per imported question: that can exhaust
+    # free-tier quotas and contend with exam writes in SQLite.
+    logger.info("Dump %s processed: %d questions extracted. Explanations deferred on demand.", bank_id[:8], len(questions))
 
     return {
         "bank_id":         bank_id,
         "questions_added": len(questions),
         "questions_rejected": rejected_count,
         "status":          "processed",
-        "explanation_status": "generating",
+        "explanation_status": "on_demand",
     }
 
 
