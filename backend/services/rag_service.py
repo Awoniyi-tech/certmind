@@ -20,7 +20,7 @@ from typing import Callable, Optional
 logger = logging.getLogger(__name__)
 
 # ---------------------------------------------------------------------------
-# Shared singletons — initialised lazily on first use
+# Shared singletons â€” initialised lazily on first use
 # ---------------------------------------------------------------------------
 _embed_model = None
 _chroma_client = None
@@ -52,7 +52,13 @@ def _get_collection():
     return _collection
 
 
-def _retrieve(query: str, vendor_filter: Optional[str] = None, k: int = 6) -> list[dict]:
+def _retrieve(
+    query: str,
+    vendor_filter: Optional[str] = None,
+    k: int = 6,
+    source_scope: str = "official",
+    user_id: Optional[str] = None,
+) -> list[dict]:
     """
     Semantic search against the shared ChromaDB.
     Returns a list of {"page_content": str, "metadata": dict} dicts.
@@ -69,14 +75,27 @@ def _retrieve(query: str, vendor_filter: Optional[str] = None, k: int = 6) -> li
 
         results = collection.query(
             query_embeddings=[query_emb],
-            n_results=k,
+            n_results=min(max(k, 1), 12),
             where=where,
             include=["documents", "metadatas"],
         )
 
         docs = []
         for doc, meta in zip(results["documents"][0], results["metadatas"][0]):
-            docs.append({"page_content": doc, "metadata": meta or {}})
+            metadata = meta or {}
+            metadata_scope = metadata.get("source_scope", metadata.get("source_type", "official"))
+            metadata_user = metadata.get("user_id")
+            if source_scope not in {"official", "personal", "both"}:
+                source_scope = "official"
+            if source_scope == "official" and metadata_scope == "personal":
+                continue
+            if source_scope == "personal" and (metadata_scope != "personal" or metadata_user != user_id):
+                continue
+            if source_scope == "both" and metadata_scope == "personal" and metadata_user != user_id:
+                continue
+            docs.append({"page_content": doc, "metadata": metadata})
+            if len(docs) >= k:
+                break
         return docs
 
     except Exception:
@@ -94,15 +113,17 @@ async def explain(
     user_answer,
     topic:       Optional[str] = None,
     cert_id:     Optional[str] = None,
+    source_scope: str = "official",
+    user_id:      Optional[str] = None,
 ) -> dict:
-    """Personalised explanation — knows what the student answered."""
+    """Personalised explanation â€” knows what the student answered."""
     try:
         from langchain_google_genai import ChatGoogleGenerativeAI
         from langchain_core.prompts import ChatPromptTemplate
         from langchain_core.output_parsers import StrOutputParser
 
         vendor  = _cert_to_vendor(cert_id)
-        docs    = _retrieve(topic or question[:80], vendor_filter=vendor, k=6)
+        docs    = _retrieve(topic or question[:80], vendor_filter=vendor, k=6, source_scope=source_scope, user_id=user_id)
         context = "\n\n".join(d["page_content"] for d in docs) if docs else ""
         sources = list({d["metadata"].get("source", "") for d in docs})
 
@@ -122,18 +143,18 @@ Official documentation context:
 
 Write a structured explanation following this EXACT format and style:
 
-1. Start with the correct answer stated clearly — e.g. "The correct answer is B." or "TRUE." or "FALSE."
+1. Start with the correct answer stated clearly â€” e.g. "The correct answer is B." or "TRUE." or "FALSE."
 2. Explain WHY the correct answer is right in 1-2 sentences, grounded in the documentation context above. Include specific technical values where relevant (timer values, port numbers, address ranges, default values).
 3. Then go through EVERY option with a verdict, using this format:
-   - For correct options: "A — [brief reason] ✓"
-   - For wrong options: "B — WRONG: [why it's wrong]. [If this concept actually belongs to a different protocol/mechanism/context, say WHERE it belongs]."
+   - For correct options: "A â€” [brief reason] âœ“"
+   - For wrong options: "B â€” WRONG: [why it's wrong]. [If this concept actually belongs to a different protocol/mechanism/context, say WHERE it belongs]."
 4. End with one short memorable takeaway sentence.
 
 Critical rules:
 - EVERY wrong option must explain WHERE that concept actually belongs if it describes a real thing from a different context. This cross-referencing is the most valuable teaching tool.
-- Use specific technical values (e.g. "default Hello=10s, Dead=40s" or "TCP port 179" or "TTL=1 for EBGP") — do not be vague.
+- Use specific technical values (e.g. "default Hello=10s, Dead=40s" or "TCP port 179" or "TTL=1 for EBGP") â€” do not be vague.
 - Keep the total explanation between 60-120 words. Dense and precise, not paddy.
-- No markdown headers. Plain text only. Use ✓ for correct and WRONG: label for incorrect.
+- No markdown headers. Plain text only. Use âœ“ for correct and WRONG: label for incorrect.
 - Base claims on the documentation context. If context doesn't cover something, use expert knowledge but keep it factual."""
 
         llm   = ChatGoogleGenerativeAI(
@@ -191,18 +212,18 @@ Official documentation context:
 
 Write a structured explanation following this EXACT format and style:
 
-1. Start with the correct answer stated clearly — e.g. "The correct answer is B." or "TRUE." or "FALSE."
+1. Start with the correct answer stated clearly â€” e.g. "The correct answer is B." or "TRUE." or "FALSE."
 2. Explain WHY the correct answer is right in 1-2 sentences, grounded in the documentation context above. Include specific technical values where relevant (timer values, port numbers, address ranges, default values).
 3. Then go through EVERY option with a verdict, using this format:
-   - For correct options: "A — [brief reason] ✓"
-   - For wrong options: "B — WRONG: [why it's wrong]. [If this concept actually belongs to a different protocol/mechanism/context, say WHERE it belongs]."
+   - For correct options: "A â€” [brief reason] âœ“"
+   - For wrong options: "B â€” WRONG: [why it's wrong]. [If this concept actually belongs to a different protocol/mechanism/context, say WHERE it belongs]."
 4. End with one short memorable takeaway sentence.
 
 Critical rules:
 - EVERY wrong option must explain WHERE that concept actually belongs if it describes a real thing from a different context. This cross-referencing is the most valuable teaching tool.
-- Use specific technical values (e.g. "default Hello=10s, Dead=40s" or "TCP port 179" or "TTL=1 for EBGP") — do not be vague.
+- Use specific technical values (e.g. "default Hello=10s, Dead=40s" or "TCP port 179" or "TTL=1 for EBGP") â€” do not be vague.
 - Keep the total explanation between 60-120 words. Dense and precise, not paddy.
-- No markdown headers. Plain text only. Use ✓ for correct and WRONG: label for incorrect.
+- No markdown headers. Plain text only. Use âœ“ for correct and WRONG: label for incorrect.
 - Base claims on the documentation context. If context doesn't cover something, use expert knowledge but keep it factual."""
 
     last_error = None
@@ -226,7 +247,7 @@ Critical rules:
         except Exception as e:
             last_error = str(e)
             logger.warning(
-                "Explanation generation failed (attempt %d/%d) for: %s... — %s",
+                "Explanation generation failed (attempt %d/%d) for: %s... â€” %s",
                 attempt, max_retries, question[:50], e,
             )
 
@@ -234,7 +255,7 @@ Critical rules:
             backoff = 2 ** attempt  # 2s, 4s
             time.sleep(backoff)
 
-    logger.error("All %d attempts failed for: %s... — last error: %s", max_retries, question[:50], last_error)
+    logger.error("All %d attempts failed for: %s... â€” last error: %s", max_retries, question[:50], last_error)
     return {
         "explanation": "",
         "sources":     [],
@@ -249,7 +270,7 @@ async def explain_generic(
     topic:       Optional[str] = None,
     cert_id:     Optional[str] = None,
 ) -> dict:
-    """Async wrapper — runs the blocking LLM call in a thread pool."""
+    """Async wrapper â€” runs the blocking LLM call in a thread pool."""
     return await asyncio.to_thread(
         _explain_generic_sync, question, options, answer_key, topic, cert_id
     )
@@ -284,10 +305,10 @@ Correct answer: {correct_str}
 
 Write a structured explanation:
 1. State why {correct_str} is correct in 1-2 sentences with specific technical details (values, ports, defaults).
-2. Go through each wrong option briefly: "[Letter] — WRONG: [why]. [Where this concept actually belongs if applicable]."
+2. Go through each wrong option briefly: "[Letter] â€” WRONG: [why]. [Where this concept actually belongs if applicable]."
 3. One takeaway sentence.
 
-Keep it 60-100 words total. Use ✓ for correct options and WRONG: for incorrect. Plain text, no markdown headers."""
+Keep it 60-100 words total. Use âœ“ for correct options and WRONG: for incorrect. Plain text, no markdown headers."""
 
         llm = ChatGoogleGenerativeAI(
             model="gemini-2.5-flash",
@@ -301,7 +322,7 @@ Keep it 60-100 words total. Use ✓ for correct options and WRONG: for incorrect
             logger.info("Fallback explanation generated for: %s...", question[:50])
             return text.strip()
     except Exception as e:
-        logger.error("Fallback explanation also failed for: %s... — %s", question[:50], e)
+        logger.error("Fallback explanation also failed for: %s... â€” %s", question[:50], e)
 
     return ""
 
@@ -345,6 +366,9 @@ async def generate_questions(
 ) -> dict:
     """Generate fresh exam questions from the RAG knowledge base."""
     try:
+        api_key = os.getenv("GOOGLE_API_KEY", "").strip()
+        if not api_key or api_key.startswith("your_"):
+            return {"questions": [], "sources": [], "error": "GOOGLE_API_KEY is missing or still a placeholder."}
         from langchain_google_genai import ChatGoogleGenerativeAI
         from langchain_core.prompts import ChatPromptTemplate
         from langchain_core.output_parsers import StrOutputParser
@@ -399,7 +423,8 @@ Rules:
             google_api_key=os.getenv("GOOGLE_API_KEY"),
         )
         chain = ChatPromptTemplate.from_messages([("human", "{input}")]) | llm | StrOutputParser()
-        text  = chain.invoke({"input": prompt_text})
+        response = await asyncio.wait_for(chain.ainvoke({"input": prompt_text}), timeout=60)
+        text = response
 
         questions = _parse_json_array(text)
         valid = []
@@ -541,7 +566,7 @@ async def background_generate_explanations(
     # Filter to only questions without explanations
     missing = [q for q in questions if not (q.get("explanation") or "").strip()]
     if not missing:
-        logger.info("[bg] All %d questions already have explanations — nothing to do", total)
+        logger.info("[bg] All %d questions already have explanations â€” nothing to do", total)
         async with aiosqlite.connect(db_path) as db:
             await db.execute(
                 "UPDATE question_banks SET explanation_progress = ? WHERE id = ?",
@@ -568,7 +593,7 @@ async def background_generate_explanations(
 
     # We need a sync-compatible callback for the async ensure_explanations
     # Since progress_callback is called inside an async context, we can use it directly
-    # But ensure_explanations expects a sync callback — let's use a wrapper
+    # But ensure_explanations expects a sync callback â€” let's use a wrapper
     progress_state = {"done": 0}
 
     def sync_progress(done, batch_total):
@@ -747,3 +772,4 @@ def _cert_to_name(cert_id: Optional[str]) -> str:
         "aws-saa":       "AWS Solutions Architect",
     }
     return mapping.get(cert_id or "", "Network Certification")
+
