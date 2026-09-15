@@ -58,34 +58,35 @@ export default function ExamRunner() {
       setResults(r => ({ ...r, [idx]: res }))
       setConf(null)
       setMultiSel([])
-      // Unlock navigation as soon as the answer is recorded. AI explanation
-      // generation is deliberately non-blocking.
+
+      // Unlock the exam immediately after the answer is recorded. Explanation
+      // generation is deliberately non-blocking and must never disable the
+      // next question or the Finish action.
       setSubmitting(false)
       setExplaining(true)
       setExplanationError('')
       ragAPI.explain({
-        question: q.question,
-        options: q.options,
-        answer_key: q.answer_key,
-        user_answer: selected,
-        topic: q.topic,
-        cert_id: q.cert_id || session.cert_id,
-        attempt_id: res.attempt_id,
-        source_scope: sourceScope,
-      }).then(explanation => {
-        if (explanation.error) {
-          setExplanationError(explanation.retryable
-            ? 'Gemini is temporarily rate-limited or unavailable. You can continue and retry later.'
-            : 'Explanation could not be generated. You can continue to the next question.')
-          return
-        }
+          question: q.question,
+          options: q.options,
+          answer_key: q.answer_key,
+          user_answer: selected,
+          topic: q.topic,
+          cert_id: q.cert_id || session.cert_id,
+          attempt_id: res.attempt_id,
+          source_scope: sourceScope,
+        }).then(explanation => {
+          if (explanation.error) {
+            setExplanationError(explanation.retryable
+              ? 'Gemini is temporarily rate-limited or unavailable. You can continue and retry later.'
+              : 'Explanation could not be generated. You can continue to the next question.')
+            return
+          }
         setQuestions(current => current.map(item => item.id === q.id
           ? { ...item, explanation: explanation.explanation, sources: explanation.sources || [] }
           : item
         ))
-      }).catch(() => {
-        setExplanationError('Explanation is temporarily unavailable. You can continue to the next question.')
-      }).finally(() => setExplaining(false))
+        }).catch(() => setExplanationError('Explanation is temporarily unavailable. You can continue to the next question.'))
+        .finally(() => setExplaining(false))
     } catch (e) {
       console.error('Submit failed', e)
       setSubmitting(false)
@@ -109,8 +110,8 @@ export default function ExamRunner() {
     const letter = opt[0].toUpperCase()
     if (!answered) return 'idle'
     const correctKey = Array.isArray(q.answer_key)
-      ? q.answer_key.map(k => String(k).toUpperCase())
-      : q.answer_key ? [String(q.answer_key).toUpperCase()] : []
+      ? q.answer_key.map(k => k.toUpperCase())
+      : [q.answer_key.toUpperCase()]
     const userAns = Array.isArray(answers[idx])
       ? answers[idx].map(k => k.toUpperCase())
       : [String(answers[idx]).toUpperCase()]
@@ -200,7 +201,7 @@ export default function ExamRunner() {
           {/* Multiple choice notice */}
           {isMultiple && !answered && (
             <p className="text-xs text-warning font-medium">
-              ⚠ Select ALL correct answers, then click Submit.
+              âš  Select ALL correct answers, then click Submit.
             </p>
           )}
 
@@ -229,7 +230,7 @@ export default function ExamRunner() {
                     <span className={`w-7 h-7 shrink-0 rounded-lg flex items-center justify-center text-xs font-bold font-mono ${
                       multiSel.includes(letter) ? 'bg-accent/25 text-accent-soft' : 'bg-elevated text-muted'
                     }`}>
-                      {multiSel.includes(letter) ? '✓' : letter}
+                      {multiSel.includes(letter) ? 'âœ“' : letter}
                     </span>
                     {text}
                   </button>
@@ -260,12 +261,12 @@ export default function ExamRunner() {
             </Button>
           )}
 
-          {/* Confidence selector — before answer */}
+          {/* Confidence selector â€” before answer */}
           {!answered && (
             <ConfidenceSelector value={confidence} onChange={setConf} />
           )}
 
-          {/* Explanation — displays INSTANTLY because it's pre-loaded */}
+          {/* Explanation â€” displays INSTANTLY because it's pre-loaded */}
           {answered && (
             <div className={`rounded-2xl border p-5 space-y-4 ${
               result?.is_correct
@@ -275,7 +276,7 @@ export default function ExamRunner() {
               <div className={`font-display font-bold text-base ${
                 result?.is_correct ? 'text-success' : 'text-danger'
               }`}>
-                {result?.is_correct ? '✓ Correct' : '✗ Incorrect'}
+                {result?.is_correct ? 'âœ“ Correct' : 'âœ— Incorrect'}
                 {!result?.is_correct && (
                   <span className="text-sm font-normal text-muted ml-2">
                     Correct: {Array.isArray(result?.correct_key)
