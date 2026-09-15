@@ -73,6 +73,12 @@ export default function ExamRunner() {
         attempt_id: res.attempt_id,
         source_scope: sourceScope,
       }).then(explanation => {
+        if (explanation.error) {
+          setExplanationError(explanation.retryable
+            ? 'Gemini is temporarily rate-limited or unavailable. You can continue and retry later.'
+            : 'Explanation could not be generated. You can continue to the next question.')
+          return
+        }
         setQuestions(current => current.map(item => item.id === q.id
           ? { ...item, explanation: explanation.explanation, sources: explanation.sources || [] }
           : item
