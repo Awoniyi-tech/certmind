@@ -351,7 +351,7 @@ async def generate_questions_route(
     db=Depends(get_db),
 ):
     try:
-        from services.rag_service import generate_questions, ensure_explanations
+        from services.rag_service import generate_questions
     except Exception:
         raise HTTPException(503, "RAG service unavailable. Check ChromaDB and API key.")
 
@@ -375,14 +375,11 @@ async def generate_questions_route(
         (bank_id, body.cert_id, user["id"], "generated", f"Generated questions: {body.topic or 'Mixed'}", len(result["questions"])),
     )
 
+    # Do not fan out explanation calls here. Free-tier providers can throttle
+    # a generated practice session if every question immediately triggers an
+    # additional model request. Explanations are generated on demand when the
+    # learner answers each question.
     questions = result["questions"]
-    if any(not q.get("explanation") for q in questions):
-        explanations = await ensure_explanations(questions)
-        for q in questions:
-            match = next((r for r in explanations if r["id"] == q["id"]), None)
-            if match:
-                q["explanation"] = match.get("explanation")
-                q["sources"]     = match.get("sources")
 
     for q in questions:
         await db.execute(
