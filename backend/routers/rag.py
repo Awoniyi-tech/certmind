@@ -638,6 +638,29 @@ async def tutor(body: TutorBody, user=Depends(get_current_user)):
     return result
 
 
+@router.post("/red-team/assess")
+async def red_team_assess(response: str, user=Depends(get_current_user)):
+    from services.red_team import assess_response
+    return assess_response(response)
+
+
+@router.get("/cache-stats")
+async def cache_stats(user=Depends(get_current_user), db=Depends(get_db)):
+    async with db.execute(
+        "SELECT cache_type, COUNT(*) AS entries, COALESCE(SUM(hit_count), 0) AS hits "
+        "FROM ai_cache GROUP BY cache_type"
+    ) as cur:
+        rows = [dict(row) for row in await cur.fetchall()]
+    total_entries = sum(row["entries"] for row in rows)
+    total_hits = sum(row["hits"] for row in rows)
+    return {
+        "entries": total_entries,
+        "hits": total_hits,
+        "hit_rate": round(total_hits / max(1, total_hits + total_entries), 4),
+        "by_type": rows,
+    }
+
+
 @router.get("/certifications")
 async def list_certifications():
     return [
