@@ -104,6 +104,22 @@ def _retrieve(
         return []
 
 
+def _select_evidence(docs: list[dict], query: str, limit: int = 3) -> list[dict]:
+    """Select high-signal, non-duplicate evidence after semantic retrieval."""
+    import re
+    query_terms = set(re.findall(r"[a-zA-Z0-9][a-zA-Z0-9_./-]{2,}", query.lower()))
+    scored, seen = [], set()
+    for index, doc in enumerate(docs):
+        content = doc.get("page_content", "")
+        fingerprint = " ".join(content.lower().split())[:500]
+        if not content or fingerprint in seen:
+            continue
+        seen.add(fingerprint)
+        terms = set(re.findall(r"[a-zA-Z0-9][a-zA-Z0-9_./-]{2,}", content.lower()))
+        scored.append((len(query_terms & terms), -index, doc))
+    scored.sort(key=lambda item: (item[0], item[1]), reverse=True)
+    return [item[2] for item in scored[:max(1, limit)]]
+
 # ---------------------------------------------------------------------------
 # Public API
 # ---------------------------------------------------------------------------
@@ -125,7 +141,8 @@ async def explain(
         from langchain_core.output_parsers import StrOutputParser
 
         vendor  = _cert_to_vendor(cert_id)
-        docs    = _retrieve(topic or question[:80], vendor_filter=vendor, k=6, source_scope=source_scope, user_id=user_id)
+        candidates = _retrieve(question, vendor_filter=vendor, k=8, source_scope=source_scope, user_id=user_id)
+        docs = _select_evidence(candidates, question, limit=3)
         context = "\n\n".join(d["page_content"] for d in docs) if docs else ""
         sources = list({d["metadata"].get("source", "") for d in docs})
 
@@ -155,7 +172,7 @@ Write a structured explanation following this EXACT format and style:
 Critical rules:
 - EVERY wrong option must explain WHERE that concept actually belongs if it describes a real thing from a different context. This cross-referencing is the most valuable teaching tool.
 - Use specific technical values (e.g. "default Hello=10s, Dead=40s" or "TCP port 179" or "TTL=1 for EBGP") â€” do not be vague.
-- Keep the total explanation between 60-120 words. Dense and precise, not paddy.
+- Keep the total explanation between 40 and 88 words. Do not pad it or restate the question and all options.
 - No markdown headers. Plain text only. Use âœ“ for correct and WRONG: label for incorrect.
 - Base claims on the documentation context. If context doesn't cover something, use expert knowledge but keep it factual."""
 
