@@ -342,14 +342,16 @@ async def judge_evaluate(body: AdvancedEvaluationBody, user=Depends(get_current_
         raise HTTPException(422, "Response and expected answer are required.")
     from services.provider_manager import invoke_gemini
     from services.advanced_evaluation import parse_judge_response
+    evidence_text = "\n\n".join(body.evidence[:3])
+    rubric_text = ", ".join(body.rubric)
     prompt = f"""You are an evaluation judge. Score the response from 0 to 5 using only the expected answer and evidence.
 Expected answer:
 {body.expected}
 Evidence:
-{"\n\n".join(body.evidence[:3])}
+{evidence_text}
 Response:
 {body.response}
-Criteria: {", ".join(body.rubric)}
+Criteria: {rubric_text}
 Return ONLY JSON: {{"score": 0, "reason": "...", "criteria": {{"correctness": 0}}}}"""
     try:
         provider = await invoke_gemini(prompt, "gemini-2.5-flash", 250)
