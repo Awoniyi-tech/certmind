@@ -713,7 +713,7 @@ For a deep lesson, use exactly:
 Rules:
 - Rewrite and teach the source; do not return retrieved chunks as-is.
 - Never invent vendor commands or values. If the source does not support a detail, say so.
-- Keep standard lessons under 500 words and deep lessons under 900 words.
+- Keep standard lessons under 300 words and deep lessons under 600 words. Prefer short paragraphs and compact numbered items.
 - Use clean plain text headings and numbered lists; no asterisk-based Markdown.
 
 """
