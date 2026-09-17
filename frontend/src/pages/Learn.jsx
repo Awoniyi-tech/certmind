@@ -154,9 +154,45 @@ export default function Learn() {
 
           <Card>
             <div className="prose prose-invert max-w-none">
-              <pre className="whitespace-pre-wrap font-body text-sm text-ink/90 leading-relaxed">
-                {cleanLessonText(content.content)}
-              </pre>
+              {content.lesson ? (
+                <div className="space-y-5">
+                  {content.lesson.objective && (
+                    <div className="rounded-xl bg-elevated border border-border p-4">
+                      <p className="text-xs uppercase tracking-wide text-accent mb-1">Objective</p>
+                      <p className="text-sm text-ink/90">{content.lesson.objective}</p>
+                    </div>
+                  )}
+                  {content.lesson.overview && (
+                    <section>
+                      <h3 className="font-display font-semibold text-ink mb-2">Overview</h3>
+                      <p className="text-sm text-ink/90 leading-relaxed">{content.lesson.overview}</p>
+                    </section>
+                  )}
+                  {(content.lesson.sections || []).map((section, i) => (
+                    <section key={i}>
+                      <h3 className="font-display font-semibold text-ink mb-2">{section.title}</h3>
+                      <p className="text-sm text-ink/90 leading-relaxed whitespace-pre-wrap">{section.content}</p>
+                    </section>
+                  ))}
+                  {[
+                    ['Key facts', content.lesson.key_facts],
+                    ['Exam points', content.lesson.exam_points],
+                    ['Common mistakes', content.lesson.common_mistakes],
+                    ['Quick check', content.lesson.quick_check],
+                  ].map(([label, items]) => items?.length > 0 && (
+                    <section key={label}>
+                      <h3 className="font-display font-semibold text-ink mb-2">{label}</h3>
+                      <ol className="list-decimal ml-5 space-y-1 text-sm text-ink/90">
+                        {items.map((item, i) => <li key={i}>{item}</li>)}
+                      </ol>
+                    </section>
+                  ))}
+                </div>
+              ) : (
+                <pre className="whitespace-pre-wrap font-body text-sm text-ink/90 leading-relaxed">
+                  {cleanLessonText(content.content)}
+                </pre>
+              )}
             </div>
 
             {content.sources?.length > 0 && (
