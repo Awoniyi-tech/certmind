@@ -132,6 +132,13 @@ class AnswerQualityBody(BaseModel):
     sources: list[str] = []
 
 
+class AdvancedEvaluationBody(BaseModel):
+    response: str
+    expected: str
+    evidence: list[str] = []
+    rubric: list[str] = ["correctness", "groundedness", "instruction_following"]
+
+
 class ExperimentCandidate(BaseModel):
     name: str
     response: str
@@ -303,6 +310,57 @@ async def answer_quality_evaluate(body: AnswerQualityBody, user=Depends(get_curr
     await db.execute(
         "INSERT INTO evaluations (id, user_id, name, response, score, result) VALUES (?,?,?,?,?,?)",
         (str(uuid.uuid4()), user["id"], "Grounded answer quality", body.response, result["score"], json.dumps(result)),
+    )
+    await db.commit()
+    return result
+
+
+@router.post("/advanced-evaluate")
+async def advanced_evaluate(body: AdvancedEvaluationBody, user=Depends(get_current_user), db=Depends(get_db)):
+    if not body.response.strip() or not body.expected.strip():
+        raise HTTPException(422, "Response and expected answer are required.")
+    from services.advanced_evaluation import lexical_similarity
+    result = {"lexical_similarity": lexical_similarity(body.response, body.expected)}
+    try:
+        from services.advanced_evaluation import semantic_similarity
+        result["semantic_similarity"] = semantic_similarity(body.response, body.expected)
+    except Exception as exc:
+        result["semantic_error"] = str(exc)
+    result.update({"response": body.response, "expected": body.expected, "rubric": body.rubric, "mode": "semantic_baseline"})
+    await db.execute(
+        "INSERT INTO evaluations (id, user_id, name, response, score, result) VALUES (?,?,?,?,?,?)",
+        (str(uuid.uuid4()), user["id"], "Advanced semantic evaluation", body.response,
+         round(result.get("semantic_similarity", result["lexical_similarity"]) * 100, 1), json.dumps(result)),
+    )
+    await db.commit()
+    return result
+
+
+@router.post("/judge-evaluate")
+async def judge_evaluate(body: AdvancedEvaluationBody, user=Depends(get_current_user), db=Depends(get_db)):
+    if not body.response.strip() or not body.expected.strip():
+        raise HTTPException(422, "Response and expected answer are required.")
+    from services.provider_manager import invoke_gemini
+    from services.advanced_evaluation import parse_judge_response
+    prompt = f"""You are an evaluation judge. Score the response from 0 to 5 using only the expected answer and evidence.
+Expected answer:
+{body.expected}
+Evidence:
+{"\n\n".join(body.evidence[:3])}
+Response:
+{body.response}
+Criteria: {", ".join(body.rubric)}
+Return ONLY JSON: {{"score": 0, "reason": "...", "criteria": {{"correctness": 0}}}}"""
+    try:
+        provider = await invoke_gemini(prompt, "gemini-2.5-flash", 250)
+        result = parse_judge_response(provider["text"])
+        result.update({"mode": "llm_judge", "model": provider["model"], "latency_ms": provider["latency_ms"]})
+    except Exception as exc:
+        raise HTTPException(503, f"Judge evaluation unavailable: {exc}")
+    await db.execute(
+        "INSERT INTO evaluations (id, user_id, name, response, score, result) VALUES (?,?,?,?,?,?)",
+        (str(uuid.uuid4()), user["id"], "LLM judge evaluation", body.response,
+         result["score"] * 20, json.dumps(result)),
     )
     await db.commit()
     return result
