@@ -473,6 +473,52 @@ Rules:
         return {"questions": [], "sources": [], "error": str(e)}
 
 
+def _parse_lesson_json(text: str) -> dict | None:
+    """Parse a structured lesson while tolerating Markdown code fences."""
+    cleaned = (text or "").strip()
+    if cleaned.startswith("```"):
+        cleaned = cleaned.split("\n", 1)[1] if "\n" in cleaned else cleaned
+        if cleaned.endswith("```"):
+            cleaned = cleaned[:-3].rstrip()
+    try:
+        payload = json.loads(cleaned)
+    except Exception:
+        start, end = cleaned.find("{"), cleaned.rfind("}")
+        if start < 0 or end <= start:
+            return None
+        try:
+            payload = json.loads(cleaned[start:end + 1])
+        except Exception:
+            return None
+    if not isinstance(payload, dict) or not isinstance(payload.get("sections"), list):
+        return None
+    payload.setdefault("key_facts", [])
+    payload.setdefault("exam_points", [])
+    payload.setdefault("common_mistakes", [])
+    payload.setdefault("quick_check", [])
+    return payload
+
+
+def _lesson_text(payload: dict) -> str:
+    """Create a readable plain-text representation of a lesson."""
+    parts = []
+    for key in ("title", "objective", "overview"):
+        if payload.get(key):
+            parts.append(str(payload[key]))
+    for section in payload.get("sections", []):
+        if isinstance(section, dict):
+            if section.get("title"):
+                parts.append(str(section["title"]))
+            if section.get("content"):
+                parts.append(str(section["content"]))
+    for key, label in (("key_facts", "Key facts"), ("exam_points", "Exam points"), ("common_mistakes", "Common mistakes"), ("quick_check", "Quick check")):
+        values = payload.get(key) or []
+        if values:
+            parts.append(label)
+            parts.extend(f"- {value}" for value in values)
+    return "\n\n".join(parts)
+
+
 def _detect_type(question: str, options: list[str], answer_key) -> str:
     if isinstance(answer_key, list) and len(answer_key) > 1:
         return "multiple"
@@ -688,7 +734,19 @@ Topic: {topic}
 Retrieved documentation (use it as evidence, but rewrite it; never paste it verbatim):
 {context if context else "Use your expert knowledge."}
 
-Write a clean lesson for a student. Do not copy the Markdown formatting from the documentation. Do not use literal `**`, `***`, or bullet characters like `*`. Use plain headings and numbered lists only.
+Return ONLY valid JSON with this shape:
+{
+  "title": "short topic title",
+  "objective": "one sentence",
+  "overview": "brief overview",
+  "sections": [{"title": "section title", "content": "concise explanation"}],
+  "key_facts": ["..."],
+  "exam_points": ["..."],
+  "common_mistakes": ["..."],
+  "quick_check": ["question"]
+}
+Do not include Markdown fences or commentary. The frontend owns presentation.
+Write a clean lesson for a student. Do not copy the Markdown formatting from the documentation.
 
 For a standard lesson, use exactly:
 
@@ -726,8 +784,11 @@ Rules:
         chain = ChatPromptTemplate.from_messages([("human", "{input}")]) | llm | StrOutputParser()
         text  = await asyncio.wait_for(chain.ainvoke({"input": prompt}), timeout=60)
 
+        lesson = _parse_lesson_json(text)
         sources = [d["metadata"].get("source", "") for d in docs]
-        return {"content": text, "topic": topic, "sources": sources}
+        if lesson:
+            return {"content": _lesson_text(lesson), "lesson": lesson, "topic": topic, "sources": sources}
+        return {"content": text, "topic": topic, "sources": sources, "lesson": None}
 
     except Exception as e:
         return {"content": f"Could not load topic: {e}", "topic": topic, "sources": []}
