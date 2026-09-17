@@ -132,6 +132,11 @@ class AnswerQualityBody(BaseModel):
     sources: list[str] = []
 
 
+class RedTeamBody(BaseModel):
+    response: str
+    attacks: list[str] = []
+
+
 class AdvancedEvaluationBody(BaseModel):
     response: str
     expected: str
@@ -639,9 +644,9 @@ async def tutor(body: TutorBody, user=Depends(get_current_user)):
 
 
 @router.post("/red-team/assess")
-async def red_team_assess(response: str, user=Depends(get_current_user)):
+async def red_team_assess(body: RedTeamBody, user=Depends(get_current_user)):
     from services.red_team import assess_response
-    return assess_response(response)
+    return assess_response(body.response, body.attacks or None)
 
 
 @router.get("/cache-stats")
