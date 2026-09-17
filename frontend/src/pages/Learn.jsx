@@ -42,12 +42,14 @@ export default function Learn() {
     const query = t || topic
     if (!query.trim()) return
     setLoading(true)
-    setContent(null)
+    const extending = requestedDepth === 'deep' && content?.topic === query
     try {
       const res = await ragAPI.learn({ topic: query, cert_id: selectedCert, depth: requestedDepth })
-      setContent(res)
+      setContent(prev => extending && prev
+        ? { ...res, topic: query, content: `${prev.content}\n\nDEEP DIVE\n\n${res.content}`, sources: [...new Set([...(prev.sources || []), ...(res.sources || [])])] }
+        : res)
     } catch {
-      setContent({ content: 'Could not load topic. Check your knowledge base.', topic: query, sources: [] })
+      setContent(prev => extending && prev ? prev : { content: 'Could not load topic. Check your knowledge base.', topic: query, sources: [] })
     } finally {
       setLoading(false)
     }
