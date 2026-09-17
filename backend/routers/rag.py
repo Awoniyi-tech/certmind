@@ -125,6 +125,13 @@ class RetrievalEvaluationBody(BaseModel):
     k: int = 3
 
 
+class AnswerQualityBody(BaseModel):
+    response: str
+    expected: Optional[str] = None
+    evidence: list[str] = []
+    sources: list[str] = []
+
+
 class ExperimentCandidate(BaseModel):
     name: str
     response: str
@@ -283,6 +290,22 @@ async def retrieval_evaluate(body: RetrievalEvaluationBody, user=Depends(get_cur
             for index, case in enumerate(body.cases)
         ],
     }
+
+
+@router.post("/answer-evaluate")
+async def answer_quality_evaluate(body: AnswerQualityBody, user=Depends(get_current_user), db=Depends(get_db)):
+    if not body.response.strip():
+        raise HTTPException(422, "Response cannot be empty.")
+    if len(body.response) > 50_000:
+        raise HTTPException(413, "Response is too large.")
+    from services.answer_quality import evaluate_answer_quality
+    result = evaluate_answer_quality(body.response, body.expected, body.evidence, body.sources)
+    await db.execute(
+        "INSERT INTO evaluations (id, user_id, name, response, score, result) VALUES (?,?,?,?,?,?)",
+        (str(uuid.uuid4()), user["id"], "Grounded answer quality", body.response, result["score"], json.dumps(result)),
+    )
+    await db.commit()
+    return result
 
 
 @router.post("/experiment")
