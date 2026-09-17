@@ -112,6 +112,19 @@ class EvaluateBody(BaseModel):
     require_json: bool = False
 
 
+
+class RetrievalCase(BaseModel):
+    query: str
+    expected_sources: list[str] = []
+    relevant_terms: list[str] = []
+
+
+class RetrievalEvaluationBody(BaseModel):
+    cases: list[RetrievalCase]
+    cert_id: Optional[str] = "hcip-datacom"
+    k: int = 3
+
+
 class ExperimentCandidate(BaseModel):
     name: str
     response: str
@@ -229,6 +242,47 @@ def _percentile(values: list[float], percentile: float) -> float:
         return 0
     index = min(len(values) - 1, max(0, round((len(values) - 1) * percentile)))
     return round(values[index], 1)
+
+
+@router.post("/retrieval-evaluate")
+async def retrieval_evaluate(body: RetrievalEvaluationBody, user=Depends(get_current_user), db=Depends(get_db)):
+    if not body.cases or len(body.cases) > 100:
+        raise HTTPException(422, "Provide between 1 and 100 retrieval cases.")
+    if body.k < 1 or body.k > 10:
+        raise HTTPException(422, "k must be between 1 and 10.")
+    from services.rag_service import _retrieve
+    from services.retrieval_eval import evaluate_retrieval
+    vendor = None
+    try:
+        from services.rag_service import _cert_to_vendor
+        vendor = _cert_to_vendor(body.cert_id)
+    except Exception:
+        pass
+    retrieved = [
+        _retrieve(case.query, vendor_filter=vendor, k=max(body.k, 8))
+        for case in body.cases
+    ]
+    metrics = evaluate_retrieval(
+        retrieved,
+        [case.expected_sources for case in body.cases],
+        [case.relevant_terms for case in body.cases],
+        k=body.k,
+    )
+    return {
+        "cert_id": body.cert_id,
+        "k": body.k,
+        "metrics": metrics,
+        "cases": [
+            {
+                "query": case.query,
+                "retrieved_sources": [
+                    (doc.get("metadata") or {}).get("source", "")
+                    for doc in retrieved[index][:body.k]
+                ],
+            }
+            for index, case in enumerate(body.cases)
+        ],
+    }
 
 
 @router.post("/experiment")
