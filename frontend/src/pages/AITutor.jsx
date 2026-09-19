@@ -1,6 +1,7 @@
 import { useState, useRef, useEffect } from 'react'
 import { Send, Zap, RotateCcw } from 'lucide-react'
 import { ragAPI } from '../lib/api.js'
+import { formatAIText } from '../lib/formatAIText.js'
 import { useStore } from '../store/useStore.js'
 import Card from '../components/ui/Card.jsx'
 import Button from '../components/ui/Button.jsx'
@@ -115,7 +116,7 @@ export default function AITutor() {
                       ? 'bg-accent text-white rounded-tr-sm'
                       : 'bg-surface border border-border text-ink rounded-tl-sm'
                   }`}>
-                    <pre className="whitespace-pre-wrap font-body">{m.content}</pre>
+                    <pre className="whitespace-pre-wrap font-body">{formatAIText(m.content)}</pre>
                   </div>
                   {m.sources?.length > 0 && (
                     <div className="flex flex-wrap gap-1 mt-1.5">
