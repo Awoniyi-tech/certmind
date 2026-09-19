@@ -834,8 +834,8 @@ Respond directly and technically. Use Huawei VRP syntax where relevant."""
         chain = ChatPromptTemplate.from_messages([("human", "{input}")]) | llm | StrOutputParser()
         text  = await asyncio.wait_for(chain.ainvoke({"input": prompt}), timeout=60)
 
-        sources = [d["metadata"].get("source", "") for d in docs]
-        return {"response": text, "sources": sources}
+        sources = list(dict.fromkeys(d["metadata"].get("source", "") for d in docs if d["metadata"].get("source")))
+        return {"response": _clean_display_text(text), "sources": sources}
 
     except Exception as e:
         return {"response": f"Tutor unavailable: {e}", "sources": []}
@@ -844,6 +844,17 @@ Respond directly and technically. Use Huawei VRP syntax where relevant."""
 # ---------------------------------------------------------------------------
 # Helpers
 # ---------------------------------------------------------------------------
+
+def _clean_display_text(text: str) -> str:
+    """Remove presentation Markdown before plain-text UI rendering."""
+    import re
+    cleaned = str(text or "")
+    cleaned = re.sub(r"\*\*([^*]+)\*\*", r"\1", cleaned)
+    cleaned = re.sub(r"(?<!\*)\*([^*\n]+)\*(?!\*)", r"\1", cleaned)
+    cleaned = re.sub(r"^\s*#{1,6}\s*", "", cleaned, flags=re.MULTILINE)
+    cleaned = re.sub(r"^\s*\*\s+", "• ", cleaned, flags=re.MULTILINE)
+    return cleaned.strip()
+
 
 def _cert_to_vendor(cert_id: Optional[str]) -> str:
     if not cert_id:
