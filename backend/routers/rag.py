@@ -421,8 +421,15 @@ async def explain_answer(body: ExplainBody, user=Depends(get_current_user), db=D
     if not explain:
         raise HTTPException(503, "RAG service unavailable. Check ChromaDB and API key.")
 
-    # Check cache first
-    cache_result = await _check_cache(db, "explanation", body.question[:100] + str(body.answer_key))
+    # Versioned cache identity prevents stale explanations after prompt/RAG changes.
+    cache_identifier = json.dumps({
+        "version": "explanation-v2",
+        "question": body.question,
+        "options": body.options,
+        "answer_key": body.answer_key,
+        "source_scope": body.source_scope,
+    }, sort_keys=True, default=str)
+    cache_result = await _check_cache(db, "explanation", cache_identifier)
     if cache_result:
         return cache_result
 
@@ -450,7 +457,7 @@ async def explain_answer(body: ExplainBody, user=Depends(get_current_user), db=D
 
     # Cache the result
     if result.get("explanation") and not result.get("error"):
-        await _set_cache(db, "explanation", body.question[:100] + str(body.answer_key), result)
+        await _set_cache(db, "explanation", cache_identifier, result)
 
     return result
 
