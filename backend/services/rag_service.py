@@ -735,16 +735,16 @@ Retrieved documentation (use it as evidence, but rewrite it; never paste it verb
 {context if context else "Use your expert knowledge."}
 
 Return ONLY valid JSON with this shape:
-{
+{{
   "title": "short topic title",
   "objective": "one sentence",
   "overview": "brief overview",
-  "sections": [{"title": "section title", "content": "concise explanation"}],
+  "sections": [{{"title": "section title", "content": "concise explanation"}}],
   "key_facts": ["..."],
   "exam_points": ["..."],
   "common_mistakes": ["..."],
   "quick_check": ["question"]
-}
+}}
 Do not include Markdown fences or commentary. The frontend owns presentation.
 Write a clean lesson for a student. Do not copy the Markdown formatting from the documentation.
 
