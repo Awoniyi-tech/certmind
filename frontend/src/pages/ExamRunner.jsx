@@ -288,7 +288,7 @@ export default function ExamRunner() {
 
               {q.explanation ? (
                 <div className="text-sm text-ink/90 leading-relaxed whitespace-pre-wrap font-body">
-                  {q.explanation}
+                  {formatAIText(q.explanation)}
                 </div>
               ) : (
                 <div className="text-sm text-warning/80 bg-warning/5 border border-warning/15 rounded-xl px-4 py-3">
