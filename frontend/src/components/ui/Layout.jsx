@@ -43,9 +43,9 @@ export default function Layout({ children }) {
     : '?'
 
   return (
-    <div className="min-h-screen bg-void flex">
+    <div className="h-screen overflow-hidden bg-void flex">
       {/* Sidebar */}
-      <aside className="w-64 shrink-0 border-r border-border bg-surface/40 backdrop-blur-sm flex flex-col">
+      <aside className="h-full w-64 shrink-0 border-r border-border bg-surface/40 backdrop-blur-sm flex flex-col min-h-0">
         <div className="px-6 py-6 border-b border-border">
           <div className="flex items-center gap-2.5">
             <div className="w-8 h-8 rounded-lg bg-gradient-to-br from-accent to-cyan-400 flex items-center justify-center">
@@ -122,7 +122,7 @@ export default function Layout({ children }) {
       </aside>
 
       {/* Main content */}
-      <main className="flex-1 overflow-y-auto">
+      <main className="flex-1 min-h-0 overflow-y-auto">
         <div className="max-w-[1400px] mx-auto px-8 py-7">
           {children}
         </div>
