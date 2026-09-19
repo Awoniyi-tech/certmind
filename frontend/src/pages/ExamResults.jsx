@@ -174,7 +174,7 @@ export default function ExamResults() {
                   </div>
                   {item.explanation && (
                     <div className="text-xs text-muted leading-relaxed bg-elevated rounded-lg p-3">
-                      {item.explanation}
+                      {formatAIText(item.explanation)}
                     </div>
                   )}
                 </div>
