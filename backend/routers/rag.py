@@ -467,7 +467,8 @@ async def learn_topic(body: LearnBody, user=Depends(get_current_user)):
     from database.db import DB_PATH
     async with aiosqlite.connect(DB_PATH) as db:
         db.row_factory = aiosqlite.Row
-        cache_result = await _check_cache(db, "learn", f"{body.cert_id}:{body.topic}:{body.depth}")
+        cache_identifier = f"learn-v2-structured:{body.cert_id}:{body.topic}:{body.depth}"
+        cache_result = await _check_cache(db, "learn", cache_identifier)
         if cache_result:
             return cache_result
 
@@ -481,7 +482,7 @@ async def learn_topic(body: LearnBody, user=Depends(get_current_user)):
     if result.get("content") and "Could not load" not in result["content"]:
         async with aiosqlite.connect(DB_PATH) as db:
             db.row_factory = aiosqlite.Row
-            await _set_cache(db, "learn", f"{body.cert_id}:{body.topic}:{body.depth}", result)
+            await _set_cache(db, "learn", cache_identifier, result)
 
     return result
 
