@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react'
 import { useSearchParams } from 'react-router-dom'
 import { BookOpen, Search, ChevronRight, Loader } from 'lucide-react'
 import { ragAPI, questionsAPI } from '../lib/api.js'
+import { formatAIText } from '../lib/formatAIText.js'
 import { useStore } from '../store/useStore.js'
 import Card from '../components/ui/Card.jsx'
 import Button from '../components/ui/Button.jsx'
@@ -13,12 +14,7 @@ const FEATURED_TOPICS = [
   'IS-IS Routing', 'QoS MQC', 'IPv6 NDP', 'DHCP Relay',
 ]
 
-function cleanLessonText(value) {
-  return String(value || '')
-    .replace(/\*\*([^*]+)\*\*/g, '$1')
-    .replace(/^\s*\*\s+/gm, 'â€¢ ')
-    .replace(/^\s*#{1,6}\s*/gm, '')
-}
+const cleanLessonText = formatAIText
 
 export default function Learn() {
   const { selectedCert } = useStore()
