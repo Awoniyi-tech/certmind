@@ -190,7 +190,7 @@ export default function WrongQuestions() {
 
                       {q.explanation ? (
                         <div className="text-xs text-muted leading-relaxed bg-elevated rounded-lg p-3">
-                          {q.explanation}
+                          {formatAIText(q.explanation)}
                         </div>
                       ) : (
                         <div className="text-xs text-muted italic">
