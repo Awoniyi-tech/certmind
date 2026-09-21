@@ -264,8 +264,8 @@ export default function Practice() {
           <>
             {tab === 'generate' ? <Sparkles size={18} /> : <Target size={18} />}
             {tab === 'generate'
-              ? `Generate & Start Â· ${effectiveCount || '?'} Questions`
-              : `Start Practice Â· ${effectiveCount || '?'} Questions`
+              ? `Generate & Start · ${effectiveCount || '?'} Questions`
+              : `Start Practice · ${effectiveCount || '?'} Questions`
             }
             <ChevronRight size={16} />
           </>
