@@ -202,7 +202,7 @@ export default function ExamRunner() {
           {/* Multiple choice notice */}
           {isMultiple && !answered && (
             <p className="text-xs text-warning font-medium">
-              âš  Select ALL correct answers, then click Submit.
+              ⚠ Select ALL correct answers, then click Submit.
             </p>
           )}
 
@@ -231,7 +231,7 @@ export default function ExamRunner() {
                     <span className={`w-7 h-7 shrink-0 rounded-lg flex items-center justify-center text-xs font-bold font-mono ${
                       multiSel.includes(letter) ? 'bg-accent/25 text-accent-soft' : 'bg-elevated text-muted'
                     }`}>
-                      {multiSel.includes(letter) ? 'âœ“' : letter}
+                      {multiSel.includes(letter) ? '✓' : letter}
                     </span>
                     {text}
                   </button>
@@ -262,12 +262,12 @@ export default function ExamRunner() {
             </Button>
           )}
 
-          {/* Confidence selector â€” before answer */}
+          {/* Confidence selector — before answer */}
           {!answered && (
             <ConfidenceSelector value={confidence} onChange={setConf} />
           )}
 
-          {/* Explanation â€” displays INSTANTLY because it's pre-loaded */}
+          {/* Explanation — displays INSTANTLY because it's pre-loaded */}
           {answered && (
             <div className={`rounded-2xl border p-5 space-y-4 ${
               result?.is_correct
@@ -277,7 +277,7 @@ export default function ExamRunner() {
               <div className={`font-display font-bold text-base ${
                 result?.is_correct ? 'text-success' : 'text-danger'
               }`}>
-                {result?.is_correct ? 'âœ“ Correct' : 'âœ— Incorrect'}
+                {result?.is_correct ? '✓ Correct' : '✕ Incorrect'}
                 {!result?.is_correct && (
                   <span className="text-sm font-normal text-muted ml-2">
                     Correct: {Array.isArray(result?.correct_key)
