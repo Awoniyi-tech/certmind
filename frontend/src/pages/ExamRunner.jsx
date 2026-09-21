@@ -7,6 +7,7 @@ import ConfidenceSelector from '../components/exam/ConfidenceSelector.jsx'
 import ExamTimer from '../components/exam/ExamTimer.jsx'
 import Button from '../components/ui/Button.jsx'
 import Badge from '../components/ui/Badge.jsx'
+import { formatAIText } from '../lib/formatAIText.js'
 
 export default function ExamRunner() {
   const { sessionId } = useParams()
