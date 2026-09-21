@@ -6,6 +6,7 @@ import { useStore } from '../store/useStore.js'
 import Card from '../components/ui/Card.jsx'
 import Button from '../components/ui/Button.jsx'
 import Badge from '../components/ui/Badge.jsx'
+import { formatAIText } from '../lib/formatAIText.js'
 
 export default function WrongQuestions() {
   const navigate = useNavigate()
