@@ -26,7 +26,7 @@ export default function Practice() {
   const [loading, setLoading] = useState(false)
   const [error, setError]     = useState('')
 
-  // Source selection â€” same as ExamSetup
+  // Source selection — same as ExamSetup
   const [tab, setTab]         = useState('generate')
   const [banks, setBanks]     = useState([])
   const [selBank, setSelBank] = useState(null)
@@ -85,7 +85,7 @@ export default function Practice() {
         <p className="text-sm text-muted mt-1">Choose your focus area and question source</p>
       </div>
 
-      {/* Question Source â€” Generate vs Dump Bank */}
+      {/* Question Source — Generate vs Dump Bank */}
       <Card>
         <div className="text-xs font-semibold text-muted uppercase tracking-wider mb-3">
           Question Source
@@ -116,7 +116,7 @@ export default function Practice() {
               <RefreshCw size={14} className="mt-0.5 shrink-0" />
               <div>
                 <span className="font-semibold">Fresh questions every time</span>
-                <span className="text-muted ml-1">â€” AI generates brand new questions. Explanations are pre-generated so they appear instantly.</span>
+                <span className="text-muted ml-1">— AI generates brand new questions. Explanations are pre-generated so they appear instantly.</span>
               </div>
             </div>
           </div>
