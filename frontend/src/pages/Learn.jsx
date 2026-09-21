@@ -144,7 +144,7 @@ export default function Learn() {
               {depth === 'deep' && <Badge variant="accent">Deep Dive</Badge>}
             </div>
             <Button variant="ghost" size="sm" onClick={() => setContent(null)}>
-              â† Back
+              ← Back
             </Button>
           </div>
 
@@ -211,7 +211,7 @@ export default function Learn() {
               onClick={() => { setDepth('deep'); fetchContent(undefined, 'deep') }}
               disabled={depth === 'deep' || loading}
             >
-              Deep Dive â†’
+              Deep Dive →
             </Button>
             <Button
               variant="ghost"
